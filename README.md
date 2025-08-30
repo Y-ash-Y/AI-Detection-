@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # PMSA — Probabilistic Media Synthesis & Authentication
 
 ⚡ A quant-grade AI project blending **deepfake detection** and **diffusion-latent watermarking**, with statistical rigor (Neyman–Pearson testing, GLRT thresholds) and robustness analysis.
@@ -50,3 +51,7 @@
     attacks.py
     tests/
     test_watermark.py
+=======
+# AI-Detection
+For detecting ai generative images and videos
+>>>>>>> a487c8f5228229a320ed2599525d1b254449df48
