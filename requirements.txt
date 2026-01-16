@@ -1,5 +1,40 @@
-torch>=2.1
-torchaudio>=2.1
+# ----------------------------
+# Core scientific stack
+# ----------------------------
 numpy>=1.26
 scipy>=1.11
+scikit-learn>=1.4
 tqdm>=4.66
+matplotlib>=3.8
+pillow>=10.0
+
+# ----------------------------
+# PyTorch (CPU)
+# ----------------------------
+torch>=2.1
+torchaudio>=2.1
+
+# ----------------------------
+# Vision & preprocessing
+# ----------------------------
+opencv-python>=4.9
+
+# ----------------------------
+# Foundation models
+# ----------------------------
+git+https://github.com/openai/CLIP.git
+
+# DINOv2 is loaded via torch.hub (no pip package)
+# internet access required on first run
+
+# ----------------------------
+# Utilities
+# ----------------------------
+filelock
+typing-extensions>=4.10
+
+# ----------------------------
+# Optional (recommended)
+# ----------------------------
+einops>=0.7        # useful for tensor reshaping (future video work)
+html5lib>=1.1     # HTML report safety

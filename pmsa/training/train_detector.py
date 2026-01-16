@@ -3,7 +3,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
-
+from pmsa.utils.attacks import jpeg_compress, add_gaussian_noise, random_crop
+import random
 from pmsa.data.datasets import ToyAVDataset
 from pmsa.models.detector import LRTSurrogate
 from pmsa.models.features import ResidualHighPass, block_dct2, DCTBandPool
@@ -62,6 +63,14 @@ def train(epochs=3, batch_size=128, lr=2e-3, device="cpu", seed=42, save_path="d
             loss = loss_fn(logits, labels)
             opt.zero_grad(); loss.backward(); opt.step()
             pbar.set_postfix(loss=loss.detach().item())
+            if model.training:
+                aug_type = random.choice(["none","jpeg","noise","crop"])
+                if aug_type == "jpeg":
+                    frames = jpeg_compress(frames, quality=30)
+                elif aug_type == "noise":
+                    frames = add_gaussian_noise(frames, sigma=0.1)
+                elif aug_type == "crop":
+                    frames = random_crop(frames, crop_frac=0.85)
 
     # ---- validate (for threshold calibration + AUC/EER)
     model.eval()
