@@ -1,0 +1,27 @@
+# Video pipeline configuration file
+# Customize model parameters, inference settings, and thresholds here
+
+temporal:
+  input_dim: 256
+  hidden_dim: 512
+  num_layers: 2
+  window_size: 16
+  stride: 8
+  threshold: 0.5
+
+lip_sync:
+  audio_dim: 256
+  video_dim: 256
+  hidden_dim: 512
+  threshold: 0.5
+
+frame_extraction:
+  sample_rate: 1
+  target_fps: 30
+  max_frames: 300
+
+inference:
+  device: "cpu"
+  batch_size: 32
+  checkpoint_path: "checkpoints/temporal_model.pt"
+  lipsync_checkpoint: "checkpoints/lip_sync_model.pt"

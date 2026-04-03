@@ -1,0 +1,27 @@
+# Image pipeline configuration file
+# Customize model names, dimensions, and inference parameters here
+
+clip:
+  model_name: "ViT-B-32"
+  device: "cpu"
+  dim: 512
+
+dino:
+  device: "cpu"
+  dim: 1024
+
+forensic:
+  dct_block: 8
+  dct_keep: 16
+  device: "cpu"
+
+fusion:
+  hidden: 512
+  lr: 1e-3
+  epochs: 15
+  alpha: 0.01
+  batch_size: 32
+
+inference:
+  device: "cpu"
+  checkpoint_path: "fusion_detector.pt"
