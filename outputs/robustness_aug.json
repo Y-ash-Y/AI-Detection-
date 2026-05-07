@@ -1,0 +1,47 @@
+{
+  "none": {
+    "detection_rate": 0.938,
+    "mean_score": 10.7277,
+    "n_images": 500
+  },
+  "jpeg_50": {
+    "detection_rate": 0.814,
+    "mean_score": 7.4441,
+    "n_images": 500
+  },
+  "jpeg_20": {
+    "detection_rate": 0.614,
+    "mean_score": 3.5358,
+    "n_images": 500
+  },
+  "noise_0.05": {
+    "detection_rate": 0.458,
+    "mean_score": 1.9858,
+    "n_images": 500
+  },
+  "noise_0.10": {
+    "detection_rate": 0.126,
+    "mean_score": -3.04,
+    "n_images": 500
+  },
+  "blur_3": {
+    "detection_rate": 0.668,
+    "mean_score": 4.5564,
+    "n_images": 500
+  },
+  "blur_7": {
+    "detection_rate": 0.608,
+    "mean_score": 3.9674,
+    "n_images": 500
+  },
+  "crop_10": {
+    "detection_rate": 0.766,
+    "mean_score": 6.4058,
+    "n_images": 500
+  },
+  "crop_20": {
+    "detection_rate": 0.642,
+    "mean_score": 3.7333,
+    "n_images": 500
+  }
+}

@@ -1,0 +1,26 @@
+# PMSA Image Pipeline Configuration
+
+model:
+  clip_model: "ViT-B/32"
+  dino_model: "vit_small_patch14_dinov2"
+  clip_dim: 512
+  dino_dim: 384
+  forensic_dim: 1024
+  dropout: 0.3
+
+training:
+  epochs: 30
+  lr: 0.001
+  weight_decay: 0.0001
+  val_split: 0.15
+  alpha: 0.01        # NP constraint: FPR ≤ 1%
+
+data:
+  real_dir: "data/real"
+  fake_dir: "data/fake"
+  feature_cache: "feature_cache/features.npz"
+
+output:
+  model_path: "outputs/fusion_detector.pt"
+  eval_results: "outputs/eval_results.json"
+  robustness: "outputs/robustness.json"

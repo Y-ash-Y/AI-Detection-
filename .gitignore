@@ -1,0 +1,49 @@
+# Large datasets
+data/
+datasets/
+
+# Feature caches and numpy files (large)
+feature_cache/
+
+# Large trained weights (over 100MB)
+outputs/fusion_detector.pt
+outputs/fusion_detector_aug.pt
+outputs/*.ckpt
+outputs/*.h5
+
+# Large zip files
+*.zip
+cifake-real-and-ai-generated-synthetic-images.zip
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+*.pot
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
