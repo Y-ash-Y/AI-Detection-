@@ -42,3 +42,24 @@ class CLIPEncoder:
 
         feats = feats / feats.norm(dim=-1, keepdim=True)
         return feats.cpu().float()
+    
+    def encode_tensor(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Accept a pre-loaded tensor (B, 3, H, W) in [0,1] range.
+        Applies CLIP normalization internally so gradients flow through.
+        Used by adversarial attack pipeline.
+        """
+        import torchvision.transforms.functional as TF
+        # Resize to CLIP expected size
+        if x.shape[-1] != 224:
+            x = TF.resize(x, [224, 224])
+        # CLIP normalization
+        mean = torch.tensor([0.48145466, 0.4578275, 0.40821073],
+                            device=x.device).view(1,3,1,1)
+        std  = torch.tensor([0.26862954, 0.26130258, 0.27577711],
+                            device=x.device).view(1,3,1,1)
+        x = (x - mean) / std
+        x = x.to(self.device)
+        feat = self.model.encode_image(x)
+        feat = feat / feat.norm(dim=-1, keepdim=True)
+        return feat.cpu().float()

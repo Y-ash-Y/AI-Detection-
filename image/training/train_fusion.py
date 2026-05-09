@@ -51,8 +51,7 @@ def augment_features(clip, dino, forensic, noise_std=0.05):
     """
     clip_aug     = clip     + torch.randn_like(clip)     * noise_std * 0.5
     dino_aug     = dino     + torch.randn_like(dino)     * noise_std * 1.0
-    forensic_aug = forensic + torch.randn_like(forensic) * noise_std * 3.0
-
+    forensic_aug = forensic + torch.randn_like(forensic) * noise_std * 0.5
     # L2 renormalize CLIP (was normalized at extraction)
     clip_aug = clip_aug / (clip_aug.norm(dim=-1, keepdim=True) + 1e-8)
 
@@ -89,6 +88,48 @@ def train(
     print(f"Train: {len(y_tr)}  |  Val: {len(y_val)}")
     if augment:
         print(f"Feature augmentation: ON  (noise_std={aug_noise})")
+    print(f"Train: {len(y_tr)}  |  Val: {len(y_val)}")
+    if augment:
+        print(f"Feature augmentation: ON  (noise_std={aug_noise})")
+
+    # ── Per-stream normalization ───────────────────────────
+    # Critical: the three feature streams have wildly different scales:
+    #   CLIP     std ~0.04   (already L2-normalized at extraction)
+    #   DINO     std ~2.5
+    #   Forensic std ~90     (DCT values reach 15,000+)
+    # Without normalization the MLP gradient is dominated by DCT features
+    # and CLIP/PRNU signals are invisible to the optimizer.
+    # We fit StandardScaler on TRAINING data only to avoid data leakage.
+    from sklearn.preprocessing import StandardScaler
+    import joblib
+    from pathlib import Path
+
+    scaler_clip     = StandardScaler()
+    scaler_dino     = StandardScaler()
+    scaler_forensic = StandardScaler()
+
+    # Fit on train, transform both train and val
+    clip_tr_np     = scaler_clip.fit_transform(clip_tr.numpy())
+    dino_tr_np     = scaler_dino.fit_transform(dino_tr.numpy())
+    forensic_tr_np = scaler_forensic.fit_transform(forensic_tr.numpy())
+
+    clip_val_np     = scaler_clip.transform(clip_val.numpy())
+    dino_val_np     = scaler_dino.transform(dino_val.numpy())
+    forensic_val_np = scaler_forensic.transform(forensic_val.numpy())
+
+    # Convert back to tensors
+    clip_tr     = torch.from_numpy(clip_tr_np).float()
+    dino_tr     = torch.from_numpy(dino_tr_np).float()
+    forensic_tr = torch.from_numpy(forensic_tr_np).float()
+    clip_val    = torch.from_numpy(clip_val_np).float()
+    dino_val    = torch.from_numpy(dino_val_np).float()
+    forensic_val = torch.from_numpy(forensic_val_np).float()
+
+    print(f"Normalization: ON  (StandardScaler per stream, fit on train)")
+    print(f"  CLIP     post-norm std: {clip_tr.std():.4f}")
+    print(f"  DINO     post-norm std: {dino_tr.std():.4f}")
+    print(f"  Forensic post-norm std: {forensic_tr.std():.4f}")
+
 
     # ── Model ──────────────────────────────────────────────
     model = FusionDetector(
@@ -190,6 +231,12 @@ def train(
     print("=" * 50)
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    # Save scalers alongside model so inference applies same normalization
+    scaler_path = Path(output_path).with_suffix("") 
+    joblib.dump(scaler_clip,     str(scaler_path) + "_scaler_clip.pkl")
+    joblib.dump(scaler_dino,     str(scaler_path) + "_scaler_dino.pkl")
+    joblib.dump(scaler_forensic, str(scaler_path) + "_scaler_forensic.pkl")
+
     torch.save({
         "state_dict":    best_state,
         "tau":           final_tau,
@@ -198,6 +245,9 @@ def train(
         "clip_dim":      clip_tr.shape[1],
         "dino_dim":      dino_tr.shape[1],
         "forensic_dim":  forensic_tr.shape[1],
+        "scaler_clip":   str(scaler_path) + "_scaler_clip.pkl",
+        "scaler_dino":   str(scaler_path) + "_scaler_dino.pkl",
+        "scaler_forensic": str(scaler_path) + "_scaler_forensic.pkl",
     }, output_path)
 
     print(f"\nSaved model → {output_path}")

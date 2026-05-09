@@ -1,0 +1,54 @@
+{
+  "n_images": 100,
+  "tau": 1.3770637512207031,
+  "baseline_detection_rate": 0.92,
+  "baseline_mean_score": 7.051673710346222,
+  "eps_002": {
+    "FGSM": {
+      "detection_rate": 0.01,
+      "evasion_rate": 0.99,
+      "mean_adv_score": -8.803718719482422,
+      "epsilon": 0.00784313725490196,
+      "epsilon_over_255": 2.0
+    },
+    "PGD": {
+      "detection_rate": 0.0,
+      "evasion_rate": 1.0,
+      "mean_adv_score": -27.49014518737793,
+      "epsilon": 0.00784313725490196,
+      "epsilon_over_255": 2.0
+    }
+  },
+  "eps_004": {
+    "FGSM": {
+      "detection_rate": 0.01,
+      "evasion_rate": 0.99,
+      "mean_adv_score": -8.949906103610992,
+      "epsilon": 0.01568627450980392,
+      "epsilon_over_255": 4.0
+    },
+    "PGD": {
+      "detection_rate": 0.0,
+      "evasion_rate": 1.0,
+      "mean_adv_score": -34.24669708251953,
+      "epsilon": 0.01568627450980392,
+      "epsilon_over_255": 4.0
+    }
+  },
+  "eps_008": {
+    "FGSM": {
+      "detection_rate": 0.03,
+      "evasion_rate": 0.97,
+      "mean_adv_score": -6.991655225902796,
+      "epsilon": 0.03137254901960784,
+      "epsilon_over_255": 8.0
+    },
+    "PGD": {
+      "detection_rate": 0.0,
+      "evasion_rate": 1.0,
+      "mean_adv_score": -39.31505012512207,
+      "epsilon": 0.03137254901960784,
+      "epsilon_over_255": 8.0
+    }
+  }
+}
