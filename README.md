@@ -1,199 +1,115 @@
-# PMSA — Probabilistic Media Synthesis & Authentication
-### Image Detection Pipeline
+# PMSA v2 — Probabilistic Media Synthesis & Authentication
+
+A **calibrated, generator-invariant** detector for synthetic images.
+
+> **Thesis.** A detector's Neyman-Pearson false-alarm guarantee (FPR ≤ α) depends
+> only on the *real* image distribution, so it is recoverable under shift via cheap
+> per-domain recalibration on **unlabeled real images** — even when detection power
+> (driven by the *fake* generator) is not. See [docs/research_statement.md](docs/research_statement.md).
+
+This is v2. v1 (`pmsa_image_pipeline`) is archived as the baseline reference —
+its zero-shot failure (FPR 1.0% → 14.4%, TPR@1% 0.939 → 0.008) is the motivating
+result. See [reference/v1_baseline.md](reference/v1_baseline.md).
 
 ---
 
-## Mathematical Foundation
+## Why this design
 
-This system implements a **Neyman-Pearson optimal detector**:
+Frozen backbones + cached features. The GPU that holds the data (P100 on Kaggle)
+does **one** extraction pass per dataset, writing `npz` caches. Every experiment
+after that — baselines, fusion, calibration, the shift matrix — trains in minutes
+on the laptop (MPS). Compute-shaped from the start.
 
 ```
-H0: x is REAL    H1: x is FAKE
-
-Optimal test:
-    Λ(x) = p(x | fake) / p(x | real)
-
-Decision:
-    log Λ(x) > τ  →  FAKE
-    log Λ(x) ≤ τ  →  REAL
+images ──(P100, once)──► feature_cache/*.npz ──(M4, minutes)──► everything
+        extract_backbone                         probe / fusion / calibrate / shift
 ```
 
-The fusion model is a **learned surrogate** for `log Λ(x)`.  
-The threshold `τ` is calibrated post-training to guarantee **FPR ≤ α** on real images.
+## Three streams (all frozen)
 
----
+| Stream    | Backbone (v2)        | Dim | Captures                         | vs v1 |
+|-----------|----------------------|-----|----------------------------------|-------|
+| Semantic  | CLIP ViT-L/14        | 768 | architecture-agnostic semantics  | was B/32 |
+| Structural| DINOv2 ViT-B/14      | 768 | geometry / structure             | was S/14 |
+| Artifact  | NPR (handcrafted)    | 44  | upsampling pixel-relations        | replaces DCT/PRNU |
 
-## Feature Streams
+NPR (Neighboring Pixel Relations) replaces v1's thumbnail-DCT/fake-PRNU forensic
+stream, which barely transferred (0.06 detection alone, see v1 ablation).
 
-| Stream   | Model              | Dim  | Captures                          |
-|----------|--------------------|------|-----------------------------------|
-| CLIP     | ViT-B/32           | 512  | Semantic, architecture-agnostic   |
-| DINOv2   | ViT-S/14           | 384  | Structural, geometric             |
-| Forensic | DCT + Noise        | 1024 | Spectral artifacts, sensor noise  |
-| **Total**|                    | **1920** |                               |
-
----
-
-## Repo Structure
+## Layout
 
 ```
 pmsa/
-├── image/
-│   ├── models/
-│   │   ├── device.py           # MPS/CUDA/CPU device selector
-│   │   ├── clip_encoder.py     # CLIP ViT-B/32 feature extractor
-│   │   ├── dino_encoder.py     # DINOv2 ViT-S/14 feature extractor
-│   │   ├── forensic_features.py# DCT + noise residual features
-│   │   ├── fusion_model.py     # LRT surrogate MLP (FusionDetector)
-│   │   └── detector_utils.py   # NP calibration + metrics
-│   ├── pipeline/
-│   │   ├── feature_extraction.py  # Single-image feature pipeline
-│   │   ├── build_features.py      # Cache features to .npz (run once)
-│   │   └── inference.py           # Single-image prediction
-│   ├── training/
-│   │   └── train_fusion.py        # Train FusionDetector + calibrate τ
-│   ├── eval/
-│   │   ├── evaluate.py            # Full metrics + ROC curve
-│   │   └── robustness.py          # Perturbation robustness suite
-│   ├── data/
-│   │   └── dataset_loader.py      # CIFAKE + generic loader
-│   └── configs/
-│       └── config.yaml
-├── feature_cache/               # .npz files (git-ignored)
-├── outputs/                     # Saved models + results
-├── data/
-│   ├── real/                    # Real images
-│   └── fake/                    # AI-generated images
-├── requirements.txt
-└── setup.py
+  backbones/    frozen extractors + registry (clip_l14, dino_b14, npr)
+  features/     npz cache (FeatureSet) + the heavy extraction pass
+  data/         Manifest (LOGO + three-way splits) + GenImage scanner
+  models/       LinearProbe (UnivFD baseline) + FusionDetector (per-stream decomp)
+  calibration/  NP thresholds (empirical + split-conformal) + Calibrator   ← contribution
+  eval/         metrics w/ bootstrap CIs + the shift-experiment matrix      ← contribution
+  utils/        seed, device
+scripts/        01 extract → 02 baseline → 03 fusion → 04 score → 05 shift
+configs/        default.yaml + experiments/
+tests/          calibration + metrics + cache (run NOW, no data/GPU needed)
+reference/      v1_baseline.md (the naive-approach rows)
+docs/           research_statement.md (Phase 0 output)
 ```
 
----
-
-## Quick Start
-
-### 1. Install
+## Quickstart
 
 ```bash
-cd pmsa
-pip install -e .
-pip install -r requirements.txt
+pip install -e ".[dev]"        # core + pytest
+pytest -q                      # the contribution is tested without any data
+
+# Heavy deps only where extraction runs (Kaggle/P100):
+pip install -e ".[extract]"
 ```
 
-### 2. Get CIFAKE dataset
+## The phase map
 
-```python
-# Option A: Kaggle CLI
-kaggle datasets download -d birdy654/cifake-real-and-ai-generated-synthetic-images
-unzip cifake-real-and-ai-generated-synthetic-images.zip -d data/cifake
+- **P0 — read** (UnivFD, GenImage, AIDE/Chameleon, NPR, conformal). Output:
+  [docs/research_statement.md](docs/research_statement.md).
+- **P1 — extract** (run on Kaggle/P100):
+  ```bash
+  python scripts/01_extract_features.py \
+      --genimage-root /kaggle/input/genimage \
+      --generators stable_diffusion_v_1_4 sdxl midjourney \
+      --per-class-limit 10000 --split train --tag train --device cuda
+  ```
+  Add real-domain-shift pools and in-the-wild fakes:
+  `--real-dir ffhq:/path/ffhq chameleon:/path/cham_real`
+  `--fake-dir nano_banana:/path/nb flux:/path/flux`
+- **P2 — baseline** (the floor; LOGO, on the laptop):
+  ```bash
+  python scripts/02_train_baseline.py --backbone clip_l14 --tag train
+  ```
+- **P3 — fusion**:
+  ```bash
+  python scripts/03_train_fusion.py --tag train --held-out sdxl
+  ```
+- **P4 — calibrate + shift matrix** (the contribution):
+  ```bash
+  python scripts/04_score_and_calibrate.py --model fusion \
+      --checkpoint outputs/fusion_logo_sdxl_seed0.pt --tag test --base-domain imagenet
+  python scripts/05_shift_experiment.py --scores outputs/scores_fusion_test.npz \
+      --base-domain imagenet --base-generator sdxl
+  ```
+- **P5 — robustness** (BPDA-corrected adversarial), in-the-wild eval, write-up.
 
-# Option B: HuggingFace
-from datasets import load_dataset
-ds = load_dataset("aychang/cifake")
-```
+## The table that doesn't exist yet
 
-Expected structure after download:
-```
-data/cifake/
-    train/
-        REAL/   (50,000 images)
-        FAKE/   (50,000 images)
-    test/
-        REAL/   (10,000 images)
-        FAKE/   (10,000 images)
-```
+`05_shift_experiment.py` produces the 2×2 the literature is missing:
 
-### 3. Build feature cache (run once, ~20-30 min on M4)
+|              | generator fixed        | generator shifted       |
+|--------------|------------------------|-------------------------|
+| real fixed   | A in-dist              | B power drops, FPR holds |
+| real shifted | C FPR breaks→recal     | D both, recal restores FPR |
 
-```bash
-# Training set
-python -m image.pipeline.build_features \
-    --cifake data/cifake \
-    --split  train \
-    --out    feature_cache/cifake_train.npz
+If real-only recalibration restores FPR ≤ α even partially in C/D, that's the
+finding — a workshop paper with a real result.
 
-# Test set
-python -m image.pipeline.build_features \
-    --cifake data/cifake \
-    --split  test \
-    --out    feature_cache/cifake_test.npz
-```
-
-### 4. Train
-
-```bash
-python -m image.training.train_fusion \
-    --features feature_cache/cifake_train.npz \
-    --val      feature_cache/cifake_test.npz \
-    --out      outputs/fusion_detector.pt \
-    --alpha    0.01 \
-    --epochs   30
-```
-
-Expected output:
-```
-Epoch  30 | Train Loss=0.0821 | Val Loss=0.1043 | AUC=0.9912 | TPR@1%FPR=0.9754 | τ=1.2341
-```
-
-### 5. Evaluate
-
-```bash
-python -m image.eval.evaluate \
-    --features feature_cache/cifake_test.npz \
-    --model    outputs/fusion_detector.pt \
-    --out      outputs/eval_results.json
-```
-
-### 6. Robustness test
-
-```bash
-python -m image.eval.robustness \
-    --image_dir data/cifake/test/FAKE \
-    --model     outputs/fusion_detector.pt \
-    --out       outputs/robustness.json
-```
-
-### 7. Single image inference
-
-```bash
-python -m image.pipeline.inference \
-    --image path/to/image.jpg \
-    --model outputs/fusion_detector.pt
-```
-
-Output:
-```
-========================================
-Image  : path/to/image.jpg
-Score  : 1.8432
-τ      : 1.2341  (α=0.01)
-Margin : +0.6091
-Result : FAKE
-========================================
-```
-
----
-
-## Metrics Reported
-
-| Metric       | Description                                      |
-|--------------|--------------------------------------------------|
-| AUC          | Area under ROC curve                             |
-| TPR @ FPR=1% | Detection rate at 1% false alarm (primary metric)|
-| TPR @ FPR=5% | Detection rate at 5% false alarm                 |
-| EER          | Equal Error Rate                                 |
-| Accuracy     | Binary accuracy at threshold τ                   |
-| FPR @ τ      | Actual false positive rate achieved              |
-
----
-
-## Notes on Mac M4
-
-- Device auto-selected: MPS > CUDA > CPU
-- Feature caching is critical — run `build_features.py` once, then all
-  training/eval runs in seconds
-- If MPS causes issues with certain ops, set `PYTORCH_ENABLE_MPS_FALLBACK=1`
-
-```bash
-PYTORCH_ENABLE_MPS_FALLBACK=1 python -m image.training.train_fusion ...
+## Honesty notes (carried from v1's lessons)
+- Every metric ships with a bootstrap CI and ≥3 seeds.
+- The baseline (UnivFD) is step one; v2 must beat it or the complexity is unearned.
+- Calibration and test reals are always disjoint.
+- Expect 65–75% on Chameleon. That's the frontier, not failure.
 ```

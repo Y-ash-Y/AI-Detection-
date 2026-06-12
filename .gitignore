@@ -1,49 +1,23 @@
-# Large datasets
-data/
-datasets/
+# Data & large artifacts (never commit)
+/data/
+/feature_cache/*.npz
+/outputs/*.pt
+/outputs/*.pkl
+/outputs/*.png
+*.jpg
+*.jpeg
+*.png
+!docs/**/*.png
 
-# Feature caches and numpy files (large)
-feature_cache/
-
-# Large trained weights (over 100MB)
-outputs/fusion_detector.pt
-outputs/fusion_detector_aug.pt
-outputs/*.ckpt
-outputs/*.h5
-
-# Large zip files
-*.zip
-cifake-real-and-ai-generated-synthetic-images.zip
-
-# Python cache
+# Python
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-
-# Virtual environments
-venv/
-env/
-ENV/
-.venv
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-*.pot
-
-# Build artifacts
-build/
-dist/
 *.egg-info/
+.pytest_cache/
+.venv/
+venv/
+*.pyc
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,44 @@
+# PMSA v2 default configuration.
+# Experiment configs in configs/experiments/ override these keys shallowly.
+
+seed: 0
+out_dir: outputs
+data_root: data
+
+feature:
+  cache_dir: feature_cache
+  batch_size: 64
+  num_workers: 4
+  backbones:
+    - name: clip_l14
+      weights: openai/clip-vit-large-patch14
+      image_size: 224
+      enabled: true
+    - name: dino_b14
+      weights: facebook/dinov2-base
+      image_size: 224
+      enabled: true
+    - name: npr
+      weights: ""
+      image_size: 256
+      enabled: true
+
+calibration:
+  alpha: 0.01          # target false-alarm rate on real images
+  method: conformal    # conformal (finite-sample) | empirical
+  cal_fraction: 0.5    # of the real-only calibration pool
+  seed: 0
+
+train:
+  model: fusion        # linear_probe (UnivFD baseline) | fusion (PMSA v2)
+  epochs: 50
+  lr: 0.001
+  weight_decay: 0.0001
+  batch_size: 256
+  seeds: [0, 1, 2]
+  val_fraction: 0.15
+
+eval:
+  bootstrap_n: 2000
+  ci: 0.95
+  fpr_targets: [0.01, 0.05]

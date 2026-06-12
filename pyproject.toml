@@ -1,0 +1,25 @@
+[project]
+name = "pmsa"
+version = "0.1.0"
+description = "PMSA v2 — calibrated, generator-invariant synthetic image detection"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "scikit-learn>=1.3",
+    "pyyaml>=6.0",
+    "joblib>=1.3",
+]
+
+[project.optional-dependencies]
+extract = ["torch>=2.1", "torchvision>=0.16", "transformers>=4.40", "pillow>=10.0"]
+dev = ["pytest>=7.4"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["pmsa*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

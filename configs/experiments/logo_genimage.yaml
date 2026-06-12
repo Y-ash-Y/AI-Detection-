@@ -1,0 +1,18 @@
+# Leave-one-generator-out over a GenImage subset (the Phase 2/3 protocol).
+# Override the data tag / generators per run on the CLI; this just pins eval rigor.
+
+seed: 0
+out_dir: outputs/logo_genimage
+
+calibration:
+  alpha: 0.01
+  method: conformal
+
+train:
+  epochs: 80
+  seeds: [0, 1, 2, 3, 4]   # more seeds for the headline LOGO table
+
+eval:
+  bootstrap_n: 2000
+  ci: 0.95
+  fpr_targets: [0.01, 0.05]
