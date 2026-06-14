@@ -15,13 +15,13 @@ result. See [reference/v1_baseline.md](reference/v1_baseline.md).
 
 ## Why this design
 
-Frozen backbones + cached features. The GPU that holds the data (P100 on Kaggle)
+Frozen backbones + cached features. The GPU that holds the data (Kaggle T4)
 does **one** extraction pass per dataset, writing `npz` caches. Every experiment
 after that — baselines, fusion, calibration, the shift matrix — trains in minutes
 on the laptop (MPS). Compute-shaped from the start.
 
 ```
-images ──(P100, once)──► feature_cache/*.npz ──(M4, minutes)──► everything
+images ──(T4, once)──► feature_cache/*.npz ──(M4, minutes)──► everything
         extract_backbone                         probe / fusion / calibrate / shift
 ```
 
@@ -60,7 +60,7 @@ docs/           research_statement.md (Phase 0 output)
 pip install -e ".[dev]"        # core + pytest
 pytest -q                      # the contribution is tested without any data
 
-# Heavy deps only where extraction runs (Kaggle/P100):
+# Heavy deps only where extraction runs (Kaggle T4):
 pip install -e ".[extract]"
 ```
 
@@ -68,7 +68,7 @@ pip install -e ".[extract]"
 
 - **P0 — read** (UnivFD, GenImage, AIDE/Chameleon, NPR, conformal). Output:
   [docs/research_statement.md](docs/research_statement.md).
-- **P1 — extract** (run on Kaggle/P100):
+- **P1 — extract** (run on Kaggle T4 — *not* P100; Kaggle's torch dropped sm_60):
   ```bash
   python scripts/01_extract_features.py \
       --genimage-root /kaggle/input/genimage \

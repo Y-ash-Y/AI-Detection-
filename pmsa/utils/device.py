@@ -1,7 +1,8 @@
-"""Device selection. P100 (CUDA) for extraction, M-series (MPS) for training.
+"""Device selection. T4 (CUDA) for extraction, M-series (MPS) for training.
 
 The whole architecture is shaped by this split: a frozen backbone runs ONE
-extraction pass on the GPU that has the data (P100 on Kaggle), caches features to
+extraction pass on the GPU that has the data (T4 on Kaggle; P100 is sm_60 and
+incompatible with Kaggle's current PyTorch), caches features to
 npz, and every downstream experiment trains in minutes on the laptop (MPS).
 """
 from __future__ import annotations

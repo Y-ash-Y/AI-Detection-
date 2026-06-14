@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Phase 1: the heavy extraction pass. Run on the GPU that holds the data (P100).
+"""Phase 1: the heavy extraction pass. Run on the GPU that holds the data (Kaggle T4).
 
 Builds a manifest (GenImage + any extra real/fake dirs), then caches one npz per
 backbone. Everything downstream reads these npz and never touches a GPU again.

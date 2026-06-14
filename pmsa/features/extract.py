@@ -1,6 +1,6 @@
 """The one heavy pass: manifest -> per-backbone npz feature caches.
 
-Run this on the GPU that holds the data (P100 on Kaggle). Every downstream
+Run this on the GPU that holds the data (T4 on Kaggle). Every downstream
 experiment then loads npz and trains on the laptop in minutes.
 """
 from __future__ import annotations
