@@ -34,6 +34,10 @@ def main():
     ap.add_argument("--fake-dir", nargs="*", default=[],
                     help="extra pure-fake dirs as SOURCE:PATH (in-the-wild)")
     ap.add_argument("--tag", default="train", help="cache filename tag")
+    ap.add_argument("--real-limit", type=int, default=None,
+                    help="cap images per --real-dir")
+    ap.add_argument("--fake-limit", type=int, default=None,
+                    help="cap images per --fake-dir")
     ap.add_argument("--device", default=None)
     args = ap.parse_args()
 
@@ -48,12 +52,12 @@ def main():
         print(f"genimage: {len(m)} images, generators={m.generators}")
     for spec in args.real_dir:
         domain, path = spec.split(":", 1)
-        m = scan_real_dir(path, domain)
+        m = scan_real_dir(path, domain, limit=args.real_limit)
         records += m.records
         print(f"real[{domain}]: {len(m)} images")
     for spec in args.fake_dir:
         source, path = spec.split(":", 1)
-        m = scan_fake_dir(path, source)
+        m = scan_fake_dir(path, source, limit=args.fake_limit)
         records += m.records
         print(f"fake[{source}]: {len(m)} images")
 
