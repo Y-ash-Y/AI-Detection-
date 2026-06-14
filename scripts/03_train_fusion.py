@@ -39,7 +39,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default="configs/default.yaml")
     ap.add_argument("--tag", default="train")
-    ap.add_argument("--held-out", required=True)
+    ap.add_argument("--held-out", default=None,
+                    help="generator to leave out; if omitted, loop over all")
     args = ap.parse_args()
 
     cfg = Config.load(args.config)
@@ -47,33 +48,38 @@ def main():
     sets, base = _load_streams(cfg, args.tag)
     specs = [StreamSpec(s.backbone, s.dim) for s in sets]
 
-    g = args.held_out
-    train_mask = (base.labels == 0) | (base.source != g)
-    test_mask = (base.labels == 0) | (base.source == g)
-
     def streams(mask):
         return [s.features[mask] for s in sets]
 
-    ytr = base.labels[train_mask]
-    yte = base.labels[test_mask]
+    generators = sorted(set(base.source[base.labels == 1]))
+    held = [args.held_out] if args.held_out else generators
 
-    agg = {}
-    for seed in cfg.train.seeds:
-        det = FusionDetector(specs, device=device, seed=seed)
-        det.fit(streams(train_mask), ytr,
-                epochs=cfg.train.epochs, lr=cfg.train.lr,
-                weight_decay=cfg.train.weight_decay,
-                batch_size=cfg.train.batch_size, verbose=False)
-        scores = det.score(streams(test_mask))
-        rep = full_report(scores, yte, cfg.eval.fpr_targets,
-                          cfg.eval.bootstrap_n, cfg.eval.ci, seed)
-        agg[seed] = rep
-        print(f"[seed {seed}] AUC={rep['auc']['point']:.4f} "
-              f"TPR@1%={rep['tpr_at_0.01']['point']:.4f}")
-        det.save(Path(cfg.out_dir) / f"fusion_logo_{g}_seed{seed}.pt")
+    results = {}
+    for g in held:
+        train_mask = (base.labels == 0) | (base.source != g)
+        test_mask = (base.labels == 0) | (base.source == g)
+        ytr, yte = base.labels[train_mask], base.labels[test_mask]
 
-    out = Path(cfg.out_dir) / f"fusion_logo_{g}.json"
-    out.write_text(json.dumps(agg, indent=2))
+        per_seed = {}
+        for seed in cfg.train.seeds:
+            det = FusionDetector(specs, device=device, seed=seed)
+            det.fit(streams(train_mask), ytr,
+                    epochs=cfg.train.epochs, lr=cfg.train.lr,
+                    weight_decay=cfg.train.weight_decay,
+                    batch_size=cfg.train.batch_size, verbose=False)
+            scores = det.score(streams(test_mask))
+            rep = full_report(scores, yte, cfg.eval.fpr_targets,
+                              cfg.eval.bootstrap_n, cfg.eval.ci, seed)
+            per_seed[seed] = rep
+            det.save(Path(cfg.out_dir) / f"fusion_logo_{g}_seed{seed}.pt")
+        results[g] = per_seed
+        aucs = [per_seed[s]["auc"]["point"] for s in cfg.train.seeds]
+        tprs = [per_seed[s]["tpr_at_0.01"]["point"] for s in cfg.train.seeds]
+        print(f"[LOGO held-out={g}] AUC={np.mean(aucs):.4f}+/-{np.std(aucs):.4f} "
+              f"TPR@1%={np.mean(tprs):.4f}+/-{np.std(tprs):.4f} (n_seeds={len(aucs)})")
+
+    out = Path(cfg.out_dir) / "fusion_logo.json"
+    out.write_text(json.dumps(results, indent=2))
     print(f"saved -> {out}")
 
 
