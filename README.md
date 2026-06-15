@@ -64,6 +64,33 @@ pytest -q                      # the contribution is tested without any data
 pip install -e ".[extract]"
 ```
 
+## Demo app — real vs AI-generated detector
+
+A layered detector with a web UI: **provenance/watermark check** (C2PA / SynthID —
+the most reliable signal for OpenAI & Gemini outputs) → **frozen CLIP-L/14 + DINOv2
++ NPR forensic fusion** → **calibrated verdict + per-stream explanation**.
+
+```bash
+pip install -r requirements-app.txt
+
+# 1) train the single deployment model from cached features (laptop, minutes)
+python scripts/train_deploy.py --tag train --alpha 0.05
+
+# 2) launch the demo
+python app.py                  # opens a local Gradio UI
+```
+
+Deploy to a **Hugging Face Space** (public link for your portfolio): create a Gradio
+Space, push this repo, rename `requirements-app.txt` → `requirements.txt`, and commit
+`outputs/deploy/fusion.pt` + `outputs/deploy/calibrator.json` (or set `PMSA_CKPT` /
+`PMSA_CAL`). Backbones download from Hugging Face on first run.
+
+**Honest scope:** strongest on common generators; on frontier models (GPT-Image,
+Nano Banana Pro) the *forensic* layer degrades unless adapted on samples — the
+*provenance* layer is what catches those reliably (until metadata is stripped). Use
+`scripts/07_few_shot_recovery.py` to adapt the forensic model to a new generator
+from a handful of labeled examples.
+
 ## The phase map
 
 - **P0 — read** (UnivFD, GenImage, AIDE/Chameleon, NPR, conformal). Output:
