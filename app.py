@@ -11,6 +11,14 @@ from __future__ import annotations
 import os
 import tempfile
 
+# allow iPhone .HEIC uploads (PIL can't open them without this plugin)
+try:
+    import pillow_heif
+
+    pillow_heif.register_heif_opener()
+except Exception:
+    pass
+
 import gradio as gr
 
 from pmsa.inference import Detector
