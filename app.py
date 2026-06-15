@@ -21,11 +21,14 @@ except Exception:
 
 import gradio as gr
 
-from pmsa.inference import Detector
 from pmsa.utils import get_device
 
+# Default engine: a strong pretrained detector (trained on 100k+ diverse images).
+# Set PMSA_HF_MODEL=local to use your own trained model in outputs/deploy/ instead.
+HF_MODEL = os.environ.get("PMSA_HF_MODEL", "Ateeqq/ai-vs-human-image-detector")
+
+
 def _default_ckpt() -> str:
-    # prefer the robust CLIP-only probe; fall back to fusion
     for p in ("outputs/deploy/probe.pkl", "outputs/deploy/fusion.pt"):
         if os.path.exists(p):
             return p
@@ -35,13 +38,18 @@ def _default_ckpt() -> str:
 CKPT = os.environ.get("PMSA_CKPT", _default_ckpt())
 CAL = os.environ.get("PMSA_CAL", "outputs/deploy/calibrator.json")
 
-_detector: Detector | None = None
+_detector = None
 
 
 def _load():
     global _detector
     if _detector is None:
-        _detector = Detector(CKPT, CAL, device=get_device())
+        if HF_MODEL and HF_MODEL.lower() != "local":
+            from pmsa.pretrained import PretrainedDetector
+            _detector = PretrainedDetector(HF_MODEL, device=get_device())
+        else:
+            from pmsa.inference import Detector
+            _detector = Detector(CKPT, CAL, device=get_device())
     return _detector
 
 
