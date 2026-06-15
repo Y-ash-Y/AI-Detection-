@@ -16,7 +16,15 @@ import gradio as gr
 from pmsa.inference import Detector
 from pmsa.utils import get_device
 
-CKPT = os.environ.get("PMSA_CKPT", "outputs/deploy/fusion.pt")
+def _default_ckpt() -> str:
+    # prefer the robust CLIP-only probe; fall back to fusion
+    for p in ("outputs/deploy/probe.pkl", "outputs/deploy/fusion.pt"):
+        if os.path.exists(p):
+            return p
+    return "outputs/deploy/probe.pkl"
+
+
+CKPT = os.environ.get("PMSA_CKPT", _default_ckpt())
 CAL = os.environ.get("PMSA_CAL", "outputs/deploy/calibrator.json")
 
 _detector: Detector | None = None

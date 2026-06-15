@@ -35,54 +35,66 @@ def main():
     ap.add_argument("--tag", default="train")
     ap.add_argument("--alpha", type=float, default=0.05,
                     help="target false-alarm rate for the deployed threshold")
+    ap.add_argument("--model", choices=["clip", "fusion"], default="clip",
+                    help="clip = robust UnivFD linear probe (recommended); "
+                         "fusion = CLIP+DINOv2+NPR (stronger in-dist, more fragile)")
     ap.add_argument("--out", default="outputs/deploy")
     args = ap.parse_args()
 
     cfg = Config.load(args.config)
     device = get_device()
     cache = Path(cfg.feature.cache_dir)
-    sets = [FeatureSet.load(cache / f"{bb.name}_{args.tag}.npz")
-            for bb in cfg.feature.backbones if bb.enabled]
-    base = sets[0]
-    for s in sets[1:]:
-        assert np.array_equal(s.paths, base.paths), "caches not aligned"
-    specs = [StreamSpec(s.backbone, s.dim) for s in sets]
 
-    # split: train / val (early stop) / calibration (real-only) / test
+    # split indices on the CLIP cache (all caches are aligned)
+    clip_fs = FeatureSet.load(cache / f"clip_l14_{args.tag}.npz")
     rng = np.random.default_rng(cfg.seed)
-    idx = rng.permutation(len(base))
+    idx = rng.permutation(len(clip_fs))
     n = len(idx)
-    tr, va, te = idx[:int(.7 * n)], idx[int(.7 * n):int(.8 * n)], idx[int(.8 * n):]
+    tr, te = idx[:int(.8 * n)], idx[int(.8 * n):]
+    labels = clip_fs.labels
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
 
-    def streams(ix):
-        return [s.features[ix] for s in sets]
+    if args.model == "clip":
+        from pmsa.models import LinearProbe
+        probe = LinearProbe(seed=cfg.seed).fit(clip_fs.features[tr], labels[tr])
+        te_scores = probe.score(clip_fs.features[te])
+        real_scores = probe.score(clip_fs.features[te][labels[te] == 0])
+        probe.save(out / "probe.pkl")
+        saved = out / "probe.pkl"
+    else:
+        sets = [FeatureSet.load(cache / f"{bb.name}_{args.tag}.npz")
+                for bb in cfg.feature.backbones if bb.enabled]
+        for s in sets[1:]:
+            assert np.array_equal(s.paths, sets[0].paths), "caches not aligned"
+        specs = [StreamSpec(s.backbone, s.dim) for s in sets]
+        va = tr[int(.875 * len(tr)):]; tr2 = tr[:int(.875 * len(tr))]
 
-    det = FusionDetector(specs, device=device, seed=cfg.seed)
-    det.fit(streams(tr), base.labels[tr], streams(va), base.labels[va],
-            epochs=cfg.train.epochs, lr=cfg.train.lr,
-            weight_decay=cfg.train.weight_decay,
-            batch_size=cfg.train.batch_size, verbose=True)
+        def streams(ix):
+            return [s.features[ix] for s in sets]
 
-    # honest held-out report
-    te_scores = det.score(streams(te))
-    rep = full_report(te_scores, base.labels[te], cfg.eval.fpr_targets,
+        det = FusionDetector(specs, device=device, seed=cfg.seed)
+        det.fit(streams(tr2), labels[tr2], streams(va), labels[va],
+                epochs=cfg.train.epochs, lr=cfg.train.lr,
+                weight_decay=cfg.train.weight_decay,
+                batch_size=cfg.train.batch_size, verbose=True)
+        te_scores = det.score(streams(te))
+        real_scores = det.score([s.features[te][labels[te] == 0] for s in sets])
+        det.save(out / "fusion.pt")
+        saved = out / "fusion.pt"
+
+    rep = full_report(te_scores, labels[te], cfg.eval.fpr_targets,
                       cfg.eval.bootstrap_n, cfg.eval.ci, cfg.seed)
-    print(f"\nheld-out: AUC={rep['auc']['point']:.4f} "
+    print(f"\n[{args.model}] held-out: AUC={rep['auc']['point']:.4f} "
           f"TPR@1%={rep['tpr_at_0.01']['point']:.4f} "
           f"TPR@5%={rep['tpr_at_0.05']['point']:.4f}")
 
-    # calibrate threshold on held-out REAL scores
-    real_te = te[base.labels[te] == 0]
-    cal = Calibrator.fit(det.score(streams(real_te)), args.alpha,
+    cal = Calibrator.fit(real_scores, args.alpha,
                          method=cfg.calibration.method, real_domain="mixed")
-
-    out = Path(args.out)
-    out.mkdir(parents=True, exist_ok=True)
-    det.save(out / "fusion.pt")
     cal.save(out / "calibrator.json")
-    print(f"\nsaved detector -> {out}/fusion.pt")
+    print(f"saved model -> {saved}")
     print(f"saved calibrator (alpha={args.alpha}, tau={cal.tau:.3f}) -> {out}/calibrator.json")
-    print("ready for: python app.py")
+    print(f"ready for: PMSA_CKPT={saved} python app.py")
 
 
 if __name__ == "__main__":
