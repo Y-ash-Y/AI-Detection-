@@ -1,9 +1,9 @@
-# Data & large artifacts (never commit)
+# Data & large artifacts (never commit) — keep the dirs, ignore their contents
 /data/
-/feature_cache/*.npz
-/outputs/*.pt
-/outputs/*.pkl
-/outputs/*.png
+/feature_cache/*
+!/feature_cache/.gitkeep
+/outputs/*
+!/outputs/.gitkeep
 *.jpg
 *.jpeg
 *.png
