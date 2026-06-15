@@ -22,6 +22,12 @@ feature:
       weights: ""
       image_size: 256
       enabled: true
+    # SigLIP backbone for training your OWN robust probe (stronger than CLIP).
+    # Flip enabled: true to extract it, then: train_deploy.py --model probe --backbone siglip
+    - name: siglip
+      weights: google/siglip-base-patch16-224
+      image_size: 224
+      enabled: false
 
 calibration:
   alpha: 0.01          # target false-alarm rate on real images

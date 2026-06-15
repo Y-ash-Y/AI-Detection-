@@ -35,9 +35,11 @@ def main():
     ap.add_argument("--tag", default="train")
     ap.add_argument("--alpha", type=float, default=0.05,
                     help="target false-alarm rate for the deployed threshold")
-    ap.add_argument("--model", choices=["clip", "fusion"], default="clip",
-                    help="clip = robust UnivFD linear probe (recommended); "
+    ap.add_argument("--model", choices=["probe", "fusion"], default="probe",
+                    help="probe = robust single-backbone linear probe (recommended); "
                          "fusion = CLIP+DINOv2+NPR (stronger in-dist, more fragile)")
+    ap.add_argument("--backbone", default="clip_l14",
+                    help="probe-mode backbone cache to train on (e.g. clip_l14, siglip)")
     ap.add_argument("--out", default="outputs/deploy")
     args = ap.parse_args()
 
@@ -45,22 +47,23 @@ def main():
     device = get_device()
     cache = Path(cfg.feature.cache_dir)
 
-    # split indices on the CLIP cache (all caches are aligned)
-    clip_fs = FeatureSet.load(cache / f"clip_l14_{args.tag}.npz")
+    # split indices on the probe backbone's cache (all caches are aligned)
+    probe_fs = FeatureSet.load(cache / f"{args.backbone}_{args.tag}.npz")
     rng = np.random.default_rng(cfg.seed)
-    idx = rng.permutation(len(clip_fs))
+    idx = rng.permutation(len(probe_fs))
     n = len(idx)
     tr, te = idx[:int(.8 * n)], idx[int(.8 * n):]
-    labels = clip_fs.labels
+    labels = probe_fs.labels
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
 
-    if args.model == "clip":
+    if args.model == "probe":
         from pmsa.models import LinearProbe
-        probe = LinearProbe(seed=cfg.seed).fit(clip_fs.features[tr], labels[tr])
-        te_scores = probe.score(clip_fs.features[te])
-        real_scores = probe.score(clip_fs.features[te][labels[te] == 0])
+        probe = LinearProbe(seed=cfg.seed).fit(probe_fs.features[tr], labels[tr])
+        te_scores = probe.score(probe_fs.features[te])
+        real_scores = probe.score(probe_fs.features[te][labels[te] == 0])
         probe.save(out / "probe.pkl")
+        (out / "probe_backbone.txt").write_text(args.backbone)  # remember for inference
         saved = out / "probe.pkl"
     else:
         sets = [FeatureSet.load(cache / f"{bb.name}_{args.tag}.npz")

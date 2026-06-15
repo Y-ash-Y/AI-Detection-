@@ -49,11 +49,13 @@ class Detector:
         self.calibrator = Calibrator.load(calibrator)
         self.uncertain_band = uncertain_band
         ckpt = str(checkpoint)
-        if ckpt.endswith(".pkl"):                       # CLIP-only linear probe
-            self.mode = "clip"
+        if ckpt.endswith(".pkl"):                       # single-backbone linear probe
+            self.mode = "probe"
             self.probe = LinearProbe.load(checkpoint)
-            self.backbones = [build_backbone("clip_l14", device=device)]
-            self._stream_names = ["clip_l14"]
+            bbfile = Path(checkpoint).with_name("probe_backbone.txt")
+            bb = bbfile.read_text().strip() if bbfile.exists() else "clip_l14"
+            self.backbones = [build_backbone(bb, device=device)]
+            self._stream_names = [bb]
         else:                                           # fusion
             self.mode = "fusion"
             self.fusion = FusionDetector.load(checkpoint, device=device)
@@ -65,9 +67,9 @@ class Detector:
         return [bb.encode([pil_image]) for bb in self.backbones]
 
     def _score_and_streams(self, streams):
-        if self.mode == "clip":
+        if self.mode == "probe":
             s = float(self.probe.score(streams[0])[0])
-            return s, {"clip_l14": s}
+            return s, {self._stream_names[0]: s}
         s = float(self.fusion.score(streams)[0])
         decomp = self.fusion.decompose(streams)
         return s, {k: float(v[0]) for k, v in decomp.items()}
