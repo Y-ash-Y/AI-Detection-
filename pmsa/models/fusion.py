@@ -154,7 +154,7 @@ class FusionDetector:
     def load(cls, path: str | Path, device="cpu") -> "FusionDetector":
         import torch
 
-        blob = torch.load(path, map_location=device)
+        blob = torch.load(path, map_location=device, weights_only=False)
         specs = [StreamSpec(n, d, h) for n, d, h in blob["specs"]]
         obj = cls(specs, device=device)
         obj.net.load_state_dict(blob["state"])

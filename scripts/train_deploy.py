@@ -10,9 +10,16 @@ the laptop (MPS/CPU) in minutes from cached npz — no GPU extraction needed.
 from __future__ import annotations
 
 import argparse
+import os
+import sys
 from pathlib import Path
 
 import numpy as np
+
+# When running this script directly, Python's sys.path[0] is the `scripts/`
+# directory which prevents importing the top-level `pmsa` package. Ensure the
+# project root is on `sys.path` so `import pmsa` works.
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from pmsa.config import Config
 from pmsa.features import FeatureSet
