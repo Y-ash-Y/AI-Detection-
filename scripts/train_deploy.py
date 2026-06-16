@@ -40,6 +40,8 @@ def main():
                          "fusion = CLIP+DINOv2+NPR (stronger in-dist, more fragile)")
     ap.add_argument("--backbone", default="clip_l14",
                     help="probe-mode backbone cache to train on (e.g. clip_l14, siglip)")
+    ap.add_argument("--backbones", nargs="*", default=None,
+                    help="fusion-mode backbone caches (e.g. siglip forensic)")
     ap.add_argument("--out", default="outputs/deploy")
     args = ap.parse_args()
 
@@ -66,8 +68,8 @@ def main():
         (out / "probe_backbone.txt").write_text(args.backbone)  # remember for inference
         saved = out / "probe.pkl"
     else:
-        sets = [FeatureSet.load(cache / f"{bb.name}_{args.tag}.npz")
-                for bb in cfg.feature.backbones if bb.enabled]
+        names = args.backbones or [b.name for b in cfg.feature.backbones if b.enabled]
+        sets = [FeatureSet.load(cache / f"{name}_{args.tag}.npz") for name in names]
         for s in sets[1:]:
             assert np.array_equal(s.paths, sets[0].paths), "caches not aligned"
         specs = [StreamSpec(s.backbone, s.dim) for s in sets]
