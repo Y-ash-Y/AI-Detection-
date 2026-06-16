@@ -71,8 +71,8 @@ class Detector:
             s = float(self.probe.score(streams[0])[0])
             return s, {self._stream_names[0]: s}
         s = float(self.fusion.score(streams)[0])
-        decomp = self.fusion.decompose(streams)
-        return s, {k: float(v[0]) for k, v in decomp.items()}
+        contrib = self.fusion.contributions(streams)  # signed, verdict-consistent
+        return s, {k: float(v[0]) for k, v in contrib.items()}
 
     def predict(self, pil_image, image_path: str | Path | None = None) -> Verdict:
         prov: Provenance = (check_provenance(image_path) if image_path

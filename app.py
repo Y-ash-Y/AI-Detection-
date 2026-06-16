@@ -21,16 +21,19 @@ import gradio as gr
 
 from pmsa.utils import get_device
 
-# Default engine: a strong pretrained detector (trained on 100k+ diverse images).
-# Set PMSA_HF_MODEL=local to use your own trained model in outputs/deploy/ instead.
-HF_MODEL = os.environ.get("PMSA_HF_MODEL", "Ateeqq/ai-vs-human-image-detector")
+# Engine selection:
+#   - if a locally trained model exists in outputs/deploy/, use it (YOUR model);
+#   - else fall back to a strong pretrained detector so the app still works.
+# Override with PMSA_HF_MODEL=<hf-id> to force the pretrained engine.
+HF_MODEL = os.environ.get("PMSA_HF_MODEL")  # None = auto
+FALLBACK_HF = "Ateeqq/ai-vs-human-image-detector"
 
 
 def _default_ckpt() -> str:
-    for p in ("outputs/deploy/probe.pkl", "outputs/deploy/fusion.pt"):
+    for p in ("outputs/deploy/fusion.pt", "outputs/deploy/probe.pkl"):
         if os.path.exists(p):
             return p
-    return "outputs/deploy/probe.pkl"
+    return "outputs/deploy/fusion.pt"
 
 
 CKPT = os.environ.get("PMSA_CKPT", _default_ckpt())
@@ -42,12 +45,17 @@ _detector = None
 def _load():
     global _detector
     if _detector is None:
-        if HF_MODEL and HF_MODEL.lower() != "local":
-            from pmsa.pretrained import PretrainedDetector
-            _detector = PretrainedDetector(HF_MODEL, device=get_device())
-        else:
+        forced = HF_MODEL and HF_MODEL.lower() not in ("local", "")
+        local_ok = os.path.exists(CKPT) and os.path.exists(CAL)
+        if not forced and local_ok:
             from pmsa.inference import Detector
             _detector = Detector(CKPT, CAL, device=get_device())
+            print(f"engine: local model {CKPT}")
+        else:
+            from pmsa.pretrained import PretrainedDetector
+            model_id = HF_MODEL if forced else FALLBACK_HF
+            _detector = PretrainedDetector(model_id, device=get_device())
+            print(f"engine: pretrained {model_id}")
     return _detector
 
 

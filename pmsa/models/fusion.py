@@ -130,7 +130,7 @@ class FusionDetector:
         return logit.cpu().numpy().ravel()
 
     def decompose(self, streams: list[np.ndarray]) -> dict[str, np.ndarray]:
-        """Per-stream logit contributions for explainability."""
+        """Raw per-stream head logits (pre-combiner)."""
         import torch
 
         self.net.eval()
@@ -138,6 +138,19 @@ class FusionDetector:
             _, stacked = self.net(self._norm(streams))
         sl = stacked.cpu().numpy()
         return {spec.name: sl[:, i] for i, spec in enumerate(self.specs)}
+
+    def contributions(self, streams: list[np.ndarray]) -> dict[str, np.ndarray]:
+        """Each stream's SIGNED contribution to the final score (combiner_weight x
+        logit). These are sign-consistent with the verdict: positive pushes toward
+        FAKE, negative toward REAL, and they sum (+ bias) to the score."""
+        import torch
+
+        self.net.eval()
+        with torch.no_grad():
+            _, stacked = self.net(self._norm(streams))
+            w = self.net.combiner.weight.detach()[0]      # [n_streams]
+            contrib = (stacked * w).cpu().numpy()
+        return {spec.name: contrib[:, i] for i, spec in enumerate(self.specs)}
 
     # ---- io -------------------------------------------------------------
     def save(self, path: str | Path) -> None:
