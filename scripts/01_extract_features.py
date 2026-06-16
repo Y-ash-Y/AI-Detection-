@@ -34,6 +34,10 @@ def main():
     ap.add_argument("--fake-dir", nargs="*", default=[],
                     help="extra pure-fake dirs as SOURCE:PATH (in-the-wild)")
     ap.add_argument("--tag", default="train", help="cache filename tag")
+    ap.add_argument("--manifest", default=None,
+                    help="extract from a prebuilt manifest CSV (skips arg-based scan)")
+    ap.add_argument("--normalize-jpeg", action="store_true",
+                    help="re-encode every image to JPEG q90 (controls format bias)")
     ap.add_argument("--real-limit", type=int, default=None,
                     help="cap images per --real-dir")
     ap.add_argument("--fake-limit", type=int, default=None,
@@ -43,6 +47,20 @@ def main():
 
     cfg = Config.load(args.config)
     device = args.device or "cuda"
+
+    if args.manifest:
+        manifest = Manifest.from_csv(args.manifest)
+        print(f"manifest: {len(manifest)} images from {args.manifest}")
+        cache_dir = Path(cfg.feature.cache_dir)
+        for bb in cfg.feature.backbones:
+            if not bb.enabled:
+                continue
+            extract_backbone(
+                manifest, bb.name, cache_dir / f"{bb.name}_{args.tag}.npz",
+                device=device, batch_size=cfg.feature.batch_size,
+                num_workers=cfg.feature.num_workers, weights=bb.weights,
+                image_size=bb.image_size, normalize_jpeg=args.normalize_jpeg)
+        return
 
     records = []
     if args.genimage_root:
@@ -78,6 +96,7 @@ def main():
             batch_size=cfg.feature.batch_size,
             num_workers=cfg.feature.num_workers,
             weights=bb.weights, image_size=bb.image_size,
+            normalize_jpeg=args.normalize_jpeg,
         )
 
 

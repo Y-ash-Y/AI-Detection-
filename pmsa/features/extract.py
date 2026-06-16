@@ -14,24 +14,35 @@ from ..data.manifest import Manifest
 from .cache import FeatureSet
 
 
-def _load_image(path: str):
+def _load_image(path: str, normalize_jpeg: bool = False):
     from PIL import Image
 
-    return Image.open(path).convert("RGB")
+    img = Image.open(path).convert("RGB")
+    if normalize_jpeg:
+        # re-encode everything to the same JPEG quality so the model can't cheat on
+        # source compression (reals JPEG vs fakes PNG) — it must learn generation.
+        import io
+
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=90)
+        buf.seek(0)
+        img = Image.open(buf).convert("RGB")
+    return img
 
 
 class _ManifestDataset:
     """Maps manifest rows -> (preprocessed tensor, index). torch Dataset-shaped."""
 
-    def __init__(self, manifest: Manifest, preprocess):
+    def __init__(self, manifest: Manifest, preprocess, normalize_jpeg: bool = False):
         self.records = manifest.records
         self.preprocess = preprocess
+        self.normalize_jpeg = normalize_jpeg
 
     def __len__(self):
         return len(self.records)
 
     def __getitem__(self, i):
-        img = _load_image(self.records[i].path)
+        img = _load_image(self.records[i].path, self.normalize_jpeg)
         return self.preprocess(img), i
 
 
@@ -45,6 +56,7 @@ def extract_backbone(
     weights: str = "",
     image_size: int = 224,
     log_every: int = 20,
+    normalize_jpeg: bool = False,
 ) -> FeatureSet:
     """Extract one backbone's features over the whole manifest and cache to npz."""
     import torch
@@ -55,7 +67,7 @@ def extract_backbone(
         kw["weights"] = weights
     bb = build_backbone(backbone_name, device=device, **kw)
 
-    ds = _ManifestDataset(manifest, bb.preprocess)
+    ds = _ManifestDataset(manifest, bb.preprocess, normalize_jpeg=normalize_jpeg)
     loader = DataLoader(ds, batch_size=batch_size, num_workers=num_workers,
                         shuffle=False, pin_memory=(device == "cuda"))
 
