@@ -28,6 +28,12 @@ feature:
       weights: google/siglip-base-patch16-224
       image_size: 224
       enabled: false
+    # Forensic stream: handcrafted artifacts (spectral/color/noise) targeting
+    # documented frontier-generator weaknesses. Pairs with siglip in the fusion.
+    - name: forensic
+      weights: ""
+      image_size: 256
+      enabled: false
 
 calibration:
   alpha: 0.01          # target false-alarm rate on real images
