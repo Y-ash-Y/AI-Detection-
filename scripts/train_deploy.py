@@ -49,26 +49,29 @@ def main():
     device = get_device()
     cache = Path(cfg.feature.cache_dir)
 
-    # split indices on the probe backbone's cache (all caches are aligned)
-    probe_fs = FeatureSet.load(cache / f"{args.backbone}_{args.tag}.npz")
+    # split indices on a reference cache (all caches are aligned). In fusion mode
+    # use the first --backbones entry, not the probe-only default.
+    fusion_names = args.backbones or [b.name for b in cfg.feature.backbones if b.enabled]
+    idx_backbone = args.backbone if args.model == "probe" else fusion_names[0]
+    ref_fs = FeatureSet.load(cache / f"{idx_backbone}_{args.tag}.npz")
     rng = np.random.default_rng(cfg.seed)
-    idx = rng.permutation(len(probe_fs))
+    idx = rng.permutation(len(ref_fs))
     n = len(idx)
     tr, te = idx[:int(.8 * n)], idx[int(.8 * n):]
-    labels = probe_fs.labels
+    labels = ref_fs.labels
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
 
     if args.model == "probe":
         from pmsa.models import LinearProbe
-        probe = LinearProbe(seed=cfg.seed).fit(probe_fs.features[tr], labels[tr])
-        te_scores = probe.score(probe_fs.features[te])
-        real_scores = probe.score(probe_fs.features[te][labels[te] == 0])
+        probe = LinearProbe(seed=cfg.seed).fit(ref_fs.features[tr], labels[tr])
+        te_scores = probe.score(ref_fs.features[te])
+        real_scores = probe.score(ref_fs.features[te][labels[te] == 0])
         probe.save(out / "probe.pkl")
         (out / "probe_backbone.txt").write_text(args.backbone)  # remember for inference
         saved = out / "probe.pkl"
     else:
-        names = args.backbones or [b.name for b in cfg.feature.backbones if b.enabled]
+        names = fusion_names
         sets = [FeatureSet.load(cache / f"{name}_{args.tag}.npz") for name in names]
         for s in sets[1:]:
             assert np.array_equal(s.paths, sets[0].paths), "caches not aligned"
