@@ -7,5 +7,6 @@ torch>=2.1
 torchvision>=0.16
 transformers>=4.40
 pillow>=10.0
-gradio>=4.
+pillow-heif>=0.16
+gradio>=4.0
 
