@@ -4,7 +4,7 @@ A calibrated, explainable detector for AI-generated images — evaluated **hones
 the in-the-wild [Chameleon](https://shilinyan99.github.io/AIDE/) benchmark, where most
 off-the-shelf detectors collapse.
 
-**▶ Live demo:** `<your-huggingface-space-link>`
+**▶ Live demo:** https://huggingface.co/spaces/Xcalivier/ai-generated-detector
 
 ![Few-shot adaptation to unseen frontier generators](docs/figures/frontier_fewshot.png)
 
