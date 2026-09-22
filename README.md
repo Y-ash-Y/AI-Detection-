@@ -69,10 +69,20 @@ python scripts/09_frontier_fewshot.py --new-fake-tag gptimage --new-name GPT-Ima
 ```
 pmsa/        backbones (SigLIP, forensic, CLIP, DINOv2, NPR) · features · data ·
              models (fusion + probe) · calibration · eval · provenance · inference
-scripts/     build_manifest · 01 extract · train_deploy · eval_testset · 09 frontier
+scripts/     data preparation · extraction · baselines · fusion · calibration ·
+             domain-shift/few-shot experiments · deployment training/evaluation
 app.py       Gradio demo (layered detector)
 tests/       calibration + metrics (run with no data/GPU)
+configs/     default settings and experiment overrides
+notebooks/   Kaggle extraction and experiment workflow
+docs/        technical report source and result figures
+reference/   historical v1 baseline results
+feature_cache/  local extracted features (ignored except .gitkeep)
+outputs/       local checkpoints, calibrators and metrics (ignored except .gitkeep)
 ```
+
+`Final_report.pdf` is the public project report. Private interview-preparation
+materials, generated caches, and local environment files are not part of the repository.
 
 ## Credits
 

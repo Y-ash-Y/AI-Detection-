@@ -21,3 +21,26 @@ venv/
 .DS_Store
 .idea/
 .vscode/
+.claude/
+
+# Personal interview preparation — local only, including compiled/exported copies
+/docs/interview_book/
+/docs/interview_book.*
+/docs/interview_prep.*
+/interview_book/
+/interview_book.*
+/interview_prep.*
+
+# Generated notebook and LaTeX build files (keep report sources and final PDFs)
+.ipynb_checkpoints/
+*.aux
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+*.toc
+*.lof
+*.lot
+*.bbl
+*.blg
+*.bcf
+*.run.xml
