@@ -23,7 +23,9 @@ _IMG_EXT = {".png", ".jpg", ".jpeg", ".bmp", ".webp"}
 
 
 def _images(d: Path):
-    return [p for p in d.rglob("*") if p.suffix.lower() in _IMG_EXT]
+    if not d.is_dir():
+        raise FileNotFoundError(f"Image directory does not exist: {d}")
+    return sorted(p for p in d.rglob("*") if p.is_file() and p.suffix.lower() in _IMG_EXT)
 
 
 def scan_genimage(root: str | Path, generators=None, split="train",
@@ -31,7 +33,7 @@ def scan_genimage(root: str | Path, generators=None, split="train",
                   real_domain="imagenet") -> Manifest:
     root = Path(root)
     if generators is None:
-        generators = [p.name for p in root.iterdir() if p.is_dir()]
+        generators = sorted(p.name for p in root.iterdir() if p.is_dir())
     recs: list[ImageRecord] = []
     for gen in generators:
         ai = root / gen / split / "ai"
@@ -60,4 +62,6 @@ def scan_fake_dir(directory: str | Path, source: str, domain="wild",
 
 
 def _limit(items, n):
+    if n is not None and n < 1:
+        raise ValueError("Image limits must be positive")
     return items if n is None else items[:n]

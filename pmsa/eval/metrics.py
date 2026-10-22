@@ -11,18 +11,23 @@ from dataclasses import dataclass
 import numpy as np
 
 
+def _binary_inputs(scores, labels):
+    scores, labels = np.asarray(scores, dtype=float), np.asarray(labels)
+    if (scores.ndim != 1 or labels.ndim != 1 or scores.shape != labels.shape
+            or not np.isfinite(scores).all() or not np.isin(labels, [0, 1]).all()):
+        raise ValueError("Metrics require aligned finite 1D scores and binary labels")
+    return scores, labels
+
+
 def roc_auc(scores: np.ndarray, labels: np.ndarray) -> float:
     """AUC via the rank (Mann-Whitney U) statistic. No sklearn dependency."""
-    scores = np.asarray(scores, dtype=np.float64).ravel()
-    labels = np.asarray(labels).ravel()
+    scores, labels = _binary_inputs(scores, labels)
     pos = scores[labels == 1]
     neg = scores[labels == 0]
     n_pos, n_neg = pos.size, neg.size
     if n_pos == 0 or n_neg == 0:
         return float("nan")
-    order = np.argsort(scores, kind="mergesort")
-    ranks = np.empty_like(order, dtype=np.float64)
-    ranks[order] = np.arange(1, scores.size + 1)
+    ranks = np.empty_like(scores, dtype=np.float64)
     # average ranks for ties
     _assign_tie_ranks(scores, ranks)
     rank_sum_pos = ranks[labels == 1].sum()
@@ -31,23 +36,15 @@ def roc_auc(scores: np.ndarray, labels: np.ndarray) -> float:
 
 
 def _assign_tie_ranks(scores: np.ndarray, ranks: np.ndarray) -> None:
-    order = np.argsort(scores, kind="mergesort")
-    s = scores[order]
-    i = 0
-    while i < s.size:
-        j = i
-        while j + 1 < s.size and s[j + 1] == s[i]:
-            j += 1
-        if j > i:
-            avg = (ranks[order[i]] + ranks[order[j]]) / 2.0
-            ranks[order[i : j + 1]] = avg
-        i = j + 1
+    _, inverse, counts = np.unique(scores, return_inverse=True, return_counts=True)
+    ranks[:] = (np.cumsum(counts) - (counts - 1) / 2)[inverse]
 
 
 def tpr_at_fpr(scores: np.ndarray, labels: np.ndarray, fpr_target: float) -> float:
     """TPR (power) at a target FPR, threshold set on the real scores in this set."""
-    scores = np.asarray(scores, dtype=np.float64).ravel()
-    labels = np.asarray(labels).ravel()
+    scores, labels = _binary_inputs(scores, labels)
+    if not np.isfinite(fpr_target) or not 0 < fpr_target < 1:
+        raise ValueError("fpr_target must be in (0,1)")
     real = scores[labels == 0]
     fake = scores[labels == 1]
     if real.size == 0 or fake.size == 0:
@@ -58,21 +55,17 @@ def tpr_at_fpr(scores: np.ndarray, labels: np.ndarray, fpr_target: float) -> flo
 
 def eer(scores: np.ndarray, labels: np.ndarray) -> float:
     """Equal error rate."""
-    scores = np.asarray(scores, dtype=np.float64).ravel()
-    labels = np.asarray(labels).ravel()
+    scores, labels = _binary_inputs(scores, labels)
     thr = np.unique(scores)
     real = scores[labels == 0]
     fake = scores[labels == 1]
     if real.size == 0 or fake.size == 0:
         return float("nan")
-    best, best_gap = 0.5, np.inf
-    for t in thr:
-        fpr = np.mean(real > t)
-        fnr = np.mean(fake <= t)
-        gap = abs(fpr - fnr)
-        if gap < best_gap:
-            best_gap, best = gap, (fpr + fnr) / 2.0
-    return float(best)
+    # O(N log N), preserving strict score > tau and first-minimum tie behavior.
+    fpr = (real.size - np.searchsorted(np.sort(real), thr, side="right")) / real.size
+    fnr = np.searchsorted(np.sort(fake), thr, side="right") / fake.size
+    best = np.argmin(np.abs(fpr - fnr))
+    return float((fpr[best] + fnr[best]) / 2)
 
 
 @dataclass
@@ -94,8 +87,11 @@ def bootstrap_ci(
     seed: int = 0,
 ) -> CI:
     """Stratified bootstrap CI for any metric fn(scores, labels)."""
-    scores = np.asarray(scores, dtype=np.float64).ravel()
-    labels = np.asarray(labels).ravel()
+    scores, labels = _binary_inputs(scores, labels)
+    if n < 1 or not 0 < ci < 1 or scores.size != labels.size or not np.isfinite(scores).all():
+        raise ValueError("Invalid bootstrap inputs")
+    if set(np.unique(labels)) != {0, 1}:
+        raise ValueError("Bootstrap evaluation requires both binary classes")
     rng = np.random.default_rng(seed)
     pos_idx = np.flatnonzero(labels == 1)
     neg_idx = np.flatnonzero(labels == 0)
@@ -135,3 +131,32 @@ def full_report(
 
 def _ci_dict(c: CI) -> dict:
     return {"point": c.point, "lo": c.lo, "hi": c.hi}
+
+
+def binomial_rate(successes, total, ci=.95):
+    """Wilson interval conditional on fixed threshold; assumes independent images."""
+    from statistics import NormalDist
+    if not 0 < ci < 1 or not 0 <= successes <= total:
+        raise ValueError("Invalid rate/interval inputs")
+    if total == 0:
+        return {"point": None, "lo": None, "hi": None, "n": 0}
+    z, p = NormalDist().inv_cdf((1 + ci) / 2), successes / total
+    den = 1 + z*z/total
+    center = (p + z*z/(2*total))/den
+    half = z*np.sqrt(p*(1-p)/total + z*z/(4*total*total))/den
+    return {"point": float(p), "lo": max(0., float(center-half)),
+            "hi": min(1., float(center+half)), "n": int(total)}
+
+
+def operating_report(scores, labels, tau, ci=.95):
+    scores, labels = np.asarray(scores), np.asarray(labels)
+    if (scores.ndim != 1 or scores.shape != labels.shape or not len(scores)
+            or not np.isfinite(scores).all() or not np.isfinite(tau)
+            or not np.isin(labels, [0, 1]).all()):
+        raise ValueError("Invalid operating-point inputs")
+    pred, real, fake = scores > tau, labels == 0, labels == 1
+    return {"tau": float(tau),
+            "fpr": binomial_rate(int(pred[real].sum()), int(real.sum()), ci),
+            "tpr": binomial_rate(int(pred[fake].sum()), int(fake.sum()), ci),
+            "accuracy": binomial_rate(int((pred == labels).sum()), len(labels), ci),
+            "note": "Wilson intervals assume independent images and a frozen threshold."}

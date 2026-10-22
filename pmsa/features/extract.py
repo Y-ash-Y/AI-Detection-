@@ -12,22 +12,12 @@ import numpy as np
 from ..backbones import build_backbone
 from ..data.manifest import Manifest
 from .cache import FeatureSet
+from ..preprocessing import ImagePolicy, load_image
+from ..artifacts import sha256_file
 
 
 def _load_image(path: str, normalize_jpeg: bool = False):
-    from PIL import Image
-
-    img = Image.open(path).convert("RGB")
-    if normalize_jpeg:
-        # re-encode everything to the same JPEG quality so the model can't cheat on
-        # source compression (reals JPEG vs fakes PNG) — it must learn generation.
-        import io
-
-        buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=90)
-        buf.seek(0)
-        img = Image.open(buf).convert("RGB")
-    return img
+    return load_image(path, ImagePolicy(normalize_jpeg=normalize_jpeg))
 
 
 class _ManifestDataset:
@@ -57,15 +47,36 @@ def extract_backbone(
     image_size: int = 224,
     log_every: int = 20,
     normalize_jpeg: bool = False,
+    revision: str | None = None,
+    use_fast: bool = False,
 ) -> FeatureSet:
     """Extract one backbone's features over the whole manifest and cache to npz."""
     import torch
     from torch.utils.data import DataLoader
 
+    if Path(out_path).exists():
+        raise FileExistsError(f"Cache already exists: {out_path}; choose a NEW tag")
+    if not len(manifest):
+        raise ValueError("Empty extraction manifest")
+
     kw = {"image_size": image_size}
     if weights:
         kw["weights"] = weights
+    if backbone_name in ("siglip", "clip_l14", "dino_b14"):
+        kw.update(revision=revision, use_fast=use_fast)
     bb = build_backbone(backbone_name, device=device, **kw)
+    from importlib.metadata import version
+    metadata = {"schema_version": 1,
+                "image_policy": ImagePolicy(normalize_jpeg=normalize_jpeg).to_dict(),
+                "backbone_kwargs": {"image_size": image_size, **getattr(bb, "load_config", {})},
+                "packages": {p: version(p) for p in ("numpy", "Pillow", "torch", "torchvision")}}
+    if getattr(bb, "load_config", {}).get("weights"):
+        metadata["packages"]["transformers"] = version("transformers")
+    # Fail before image hashing or a GPU pass if provenance cannot be recorded.
+    from ..artifacts import validate_stream_metadata
+    validate_stream_metadata({backbone_name: metadata})
+    print("Hashing files for exact-duplicate grouping...", flush=True)
+    hashes = np.array([sha256_file(r.path) for r in manifest.records])
 
     ds = _ManifestDataset(manifest, bb.preprocess, normalize_jpeg=normalize_jpeg)
     loader = DataLoader(ds, batch_size=batch_size, num_workers=num_workers,
@@ -87,6 +98,8 @@ def extract_backbone(
         domain=np.array([r.domain for r in recs], dtype=str),
         source=np.array([r.source for r in recs], dtype=str),
         backbone=backbone_name,
+        metadata=metadata, content_hashes=hashes,
+        related_groups=np.array([r.group_id for r in recs], dtype=str),
     )
     fs.save(out_path)
     print(f"[{backbone_name}] saved {len(ds)} x {bb.dim} -> {out_path}", flush=True)

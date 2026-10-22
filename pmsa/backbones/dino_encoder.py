@@ -8,6 +8,7 @@ from __future__ import annotations
 import numpy as np
 
 from .base import Backbone, register
+from .hub_revision import resolve_hub_revision
 
 
 @register("dino_b14")
@@ -16,16 +17,18 @@ class DINOEncoder(Backbone):
 
     def __init__(self, device: str = "cpu",
                  weights: str = "facebook/dinov2-base",
-                 image_size: int = 224, **kw):
+                 image_size: int = 224, revision=None, use_fast=False, **kw):
         super().__init__(device=device)
         import torch
         from transformers import AutoModel, AutoImageProcessor
 
         self.torch = torch
-        self.model = AutoModel.from_pretrained(weights).to(device).eval()
+        revision = resolve_hub_revision(weights, revision)
+        self.model = AutoModel.from_pretrained(weights, revision=revision).to(device).eval()
         for p in self.model.parameters():
             p.requires_grad_(False)
-        self.processor = AutoImageProcessor.from_pretrained(weights)
+        self.processor = AutoImageProcessor.from_pretrained(weights, revision=revision, use_fast=use_fast)
+        self.load_config = {"weights": weights, "revision": revision, "use_fast": use_fast}
         self._image_size = image_size
 
     @property

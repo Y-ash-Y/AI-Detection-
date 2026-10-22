@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "aggregate_transcription_of_reviewed_run_not_new_measurement",
+  "source_archive_sha256": "91c81deb956ac0bdfd6a1e7ed3b63ca919420ccd29b365ce2a54cf282d7b8605",
+  "source_snapshot_sha256": "e0fa9888839a197948344ba910cb3b9912faf7423358dc91672046e51744e526",
+  "local_reference": "outputs/fresh_full_review_01/summary.json",
+  "seeds": [0, 1, 2],
+  "target_fpr": 0.05,
+  "external_representatives": {"total":26017,"real":14863,"generated":11154},
+  "models": {
+    "siglip_probe": {"mean_auc":0.8696979480908599,"mean_fpr":0.061068873488977105,"mean_tpr":0.45920745920745926},
+    "forensic_probe": {"mean_auc":0.5969162625081557,"mean_fpr":0.05135795824082173,"mean_tpr":0.03012372243141474},
+    "siglip_mlp": {"mean_auc":0.9031985881868657,"mean_fpr":0.08654600910538475,"mean_tpr":0.6328372482218637},
+    "fusion": {"mean_auc":0.9104538292726306,"mean_fpr":0.0825315660813205,"mean_tpr":0.646643954336262}
+  },
+  "qualifications": [
+    "Means describe three fitted seeds, not a best-seed release or population confidence interval.",
+    "FPR and TPR use separately fitted frozen broad-real calibration thresholds, not thresholds chosen on Chameleon test scores.",
+    "Chameleon was previously inspected; this is benchmark reproduction rather than a newly blinded holdout.",
+    "The 26017 retained representatives must not be mixed with the older 26033-image reports.",
+    "Full private predictions, split identities and per-run intervals remain outside Git.",
+    "This summary does not validate the hosted application, current frontier models, edited photos, or universal low false alarms."
+  ]
+}

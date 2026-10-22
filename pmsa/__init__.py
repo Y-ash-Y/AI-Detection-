@@ -1,13 +1,9 @@
-"""PMSA v2 — Probabilistic Media Synthesis & Authentication.
+"""PMSA — frozen-feature still-image forensic detection.
 
-A calibrated, generator-invariant detector for synthetic images.
-
-Thesis: the Neyman-Pearson false-alarm guarantee (FPR <= alpha) depends only on
-the *real* image distribution, so it is recoverable under shift via cheap
-per-domain recalibration on unlabeled real images — even when detection power
-(driven by the *fake* generator) is not.
-
-See README.md for the project overview and docs/report.tex for the technical report.
+Custom heads combine semantic and statistical features. Real-only calibration
+sets a reference decision threshold, not an AI probability or a guarantee under
+arbitrary shift. Representative trusted real data are needed for recalibration.
+See README.md, docs/ARCHITECTURE.md and docs/MODEL_CARD.md for scope and limits.
 """
 
 __version__ = "0.1.0"

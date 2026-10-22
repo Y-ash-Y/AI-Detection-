@@ -1,13 +1,8 @@
-"""Pretrained forensic engine — wrap a strong off-the-shelf detector.
+"""Optional third-party baseline, never an automatic app fallback.
 
-Our own tiny-genimage model can't represent the diversity of real-world photos, so
-for the deployable app we stand on a detector trained on 100k+ diverse images (e.g.
-Ateeqq/ai-vs-human-image-detector, SigLIP). Our value-add is the LAYERED SYSTEM
-around it: provenance/watermark (Layer 1) + calibrated/explained verdict (Layer 3),
-and few-shot adaptation when you have samples of a new generator.
-
-Same .predict(image) -> Verdict interface as pmsa.inference.Detector, so the app is
-engine-agnostic.
+Its weights belong to the credited upstream author. Softmax scores are not
+probability-calibrated for our deployment data. This adapter is for explicit
+comparison only; the main app serves the project's locally trained detector.
 """
 from __future__ import annotations
 
@@ -15,7 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .inference import Verdict
+from .inference import Verdict, decision_label
 from .provenance import check_provenance, Provenance
 
 _AI_KEYWORDS = ("ai", "fake", "artificial", "generat", "synth", "machine")
@@ -47,7 +42,7 @@ class PretrainedDetector:
         for i, name in id2label.items():
             if any(k in str(name).lower() for k in ("real", "hum", "nature", "photo")):
                 return int(1 - int(i)) if len(id2label) == 2 else int(i)
-        return 0
+        raise ValueError("Cannot identify the AI class; inspect upstream id2label explicitly")
 
     def _p_ai(self, pil_image) -> float:
         torch = self.torch
@@ -63,24 +58,15 @@ class PretrainedDetector:
         p_ai = self._p_ai(pil_image)
         calibrated_fake = p_ai > self.threshold
 
-        if prov.found:
-            label = "AI-generated"
-            explanation = f"Provenance metadata present ({', '.join(prov.signals)})."
-        elif abs(p_ai - 0.5) < self.uncertain_band:
-            label = "Uncertain"
-            explanation = f"Model unsure (P(AI)={p_ai:.0%}); no provenance markers."
-        elif calibrated_fake:
-            label = "AI-generated"
-            explanation = f"Pretrained detector ({self._short}) flags AI at {p_ai:.0%}."
-        else:
-            label = "Real"
-            explanation = f"Pretrained detector ({self._short}) reads real (P(AI)={p_ai:.0%}); no provenance markers."
+        label = decision_label(p_ai, self.threshold, self.uncertain_band)
+        explanation = (f"External baseline {self.model_id}; softmax score={p_ai:.4f}, "
+                       "not a calibrated AI probability. Metadata does not override this decision.")
 
         return Verdict(
-            label=label, ai_probability=round(p_ai, 4),
+            label=label, ai_probability=None, margin=p_ai-self.threshold,
             calibrated_fake=calibrated_fake, score=round(p_ai, 4),
             tau=self.threshold, per_stream={self._short: round(p_ai, 4)},
-            provenance=prov.as_dict(), explanation=explanation,
+            provenance=prov.as_dict(), explanation=explanation, artifact_status="external-baseline",
         )
 
 
@@ -91,4 +77,4 @@ if __name__ == "__main__":  # quick CLI: python -m pmsa.pretrained <image>
     path = sys.argv[1]
     det = PretrainedDetector()
     v = det.predict(Image.open(path).convert("RGB"), image_path=path)
-    print(v.label, f"P(AI)={v.ai_probability:.2%}", "|", v.explanation)
+    print(v.label, f"softmax score={v.score:.4f}", "|", v.explanation)

@@ -1,0 +1,10 @@
+# Isolated macOS Python 3.12 environment for the recorded fresh-full-01 bundle.
+# Do not apply to the live app's .venv. CUDA build suffixes are not used on macOS.
+numpy==2.1.3
+torch==2.11.0
+torchvision==0.26.0
+transformers==5.16.1
+Pillow==12.3.0
+scikit-learn==1.6.1
+pillow-heif==1.4.0
+PyYAML==6.0.3

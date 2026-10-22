@@ -1,20 +1,9 @@
-"""Forensic feature stream — handcrafted artifacts derived from generator papers.
+"""Deterministic spectral, color and residual statistics (66 dimensions).
 
-A frozen, deterministic, cache-compatible expert (like NPR) whose features target
-the *documented physical/statistical weaknesses* of frontier generators. It's
-complementary to learned semantic features (SigLIP) and — unlike them — explainable.
-
-Signals and which paper-documented weakness each exploits:
-  spectral   FFT high-frequency energy + spectral slope + radial profile
-             -> Nano Banana Pro over-smoothing / loss of HF detail (2512.15110),
-                GPT-Image upsampling-interpolation artifacts & over-refinement
-                (GPT-ImgEval 2504.02782), VAE blur in latent diffusion (2603.07455).
-  color      saturation / vibrance / channel-correlation statistics
-             -> NB Pro non-physical color shifts & over-saturation; GPT-4o color bias.
-  noise      denoising residual statistics (PRNU proxy)
-             -> real photos carry camera sensor noise that AI images lack (2603.07455).
-
-No training, no weights — extract once and cache, exactly like the other backbones.
+These are candidate forensic signals, not proven generator fingerprints. Resizing,
+compression, editing and camera pipelines can produce similar statistics. The
+smoothed-image residual is NOT a validated PRNU sensor fingerprint. An ablation
+can measure predictive value but cannot identify a causal generator weakness.
 """
 from __future__ import annotations
 
@@ -63,10 +52,10 @@ class ForensicBackbone(Backbone):
         spec = torch.fft.fftshift(torch.fft.fft2(gray), dim=(-2, -1)).abs()
         radial = self._radial_profile(spec)              # [B, _RADIAL]
         radial_log = torch.log1p(radial)
-        # high-frequency energy ratio (outer half of the spectrum vs total)
+        # Outer-bin / total ratio of mean FFT amplitudes (not physical energy).
         half = _RADIAL // 2
         hf_ratio = (radial[:, half:].sum(1) / (radial.sum(1) + 1e-8)).unsqueeze(1)
-        # spectral slope: linear fit of log-power vs log-radius
+        # Slope: fit log1p(mean FFT amplitude) against log1p(bin index + 1).
         slope = self._slope(radial_log).unsqueeze(1)
         return torch.cat([hf_ratio, slope, radial_log], dim=1)
 
@@ -107,7 +96,7 @@ class ForensicBackbone(Backbone):
             rb / (denom[:, 0] * denom[:, 2] + eps),
         ], dim=1)
 
-    # ---- noise residual (PRNU proxy) -----------------------------------
+    # ---- smoothed-image residual (not a validated PRNU fingerprint) -----
     def _noise(self, x):
         torch = self.torch
         F = torch.nn.functional

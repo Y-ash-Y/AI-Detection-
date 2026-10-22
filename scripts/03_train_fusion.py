@@ -11,6 +11,8 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import numpy as np
 
@@ -19,6 +21,8 @@ from pmsa.features import FeatureSet
 from pmsa.models import FusionDetector, StreamSpec
 from pmsa.eval import full_report
 from pmsa.utils import get_device
+from pmsa.data.splits import logo_split, independent_indices
+from pmsa.features.cache import validate_alignment
 
 
 def _load_streams(cfg, tag):
@@ -29,9 +33,10 @@ def _load_streams(cfg, tag):
         sets.append(FeatureSet.load(
             Path(cfg.feature.cache_dir) / f"{bb.name}_{tag}.npz"))
     # alignment check
+    validate_alignment(sets)
+    ix = independent_indices(sets[0].labels, sets[0].groups())
+    sets = [s.select(ix) for s in sets]
     base = sets[0]
-    for s in sets[1:]:
-        assert np.array_equal(s.paths, base.paths), "caches not aligned"
     return sets, base
 
 
@@ -54,10 +59,17 @@ def main():
     generators = sorted(set(base.source[base.labels == 1]))
     held = [args.held_out] if args.held_out else generators
 
+    out = Path(cfg.out_dir) / "fusion_logo_v3.json"
+    targets = [out, *[Path(cfg.out_dir) / f"fusion_logo_v3_{g}_seed{seed}.pt"
+                     for g in held for seed in cfg.train.seeds]]
+    if any(p.exists() for p in targets):
+        raise FileExistsError("LOGO outputs exist; choose a new out_dir in the config")
+    if any(Path(g).name != g or g in (".", "..") for g in held):
+        raise ValueError("Generator names must be filename-safe")
+
     results = {}
     for g in held:
-        train_mask = (base.labels == 0) | (base.source != g)
-        test_mask = (base.labels == 0) | (base.source == g)
+        train_mask, test_mask = logo_split(base.labels, base.source, base.groups(), g, cfg.seed)
         ytr, yte = base.labels[train_mask], base.labels[test_mask]
 
         per_seed = {}
@@ -71,14 +83,16 @@ def main():
             rep = full_report(scores, yte, cfg.eval.fpr_targets,
                               cfg.eval.bootstrap_n, cfg.eval.ci, seed)
             per_seed[seed] = rep
-            det.save(Path(cfg.out_dir) / f"fusion_logo_{g}_seed{seed}.pt")
+            rep["protocol"] = "disjoint-logo-v3"
+            rep["exploratory_legacy"] = base.content_hashes is None
+            det.save(Path(cfg.out_dir) / f"fusion_logo_v3_{g}_seed{seed}.pt")
         results[g] = per_seed
         aucs = [per_seed[s]["auc"]["point"] for s in cfg.train.seeds]
         tprs = [per_seed[s]["tpr_at_0.01"]["point"] for s in cfg.train.seeds]
         print(f"[LOGO held-out={g}] AUC={np.mean(aucs):.4f}+/-{np.std(aucs):.4f} "
               f"TPR@1%={np.mean(tprs):.4f}+/-{np.std(tprs):.4f} (n_seeds={len(aucs)})")
 
-    out = Path(cfg.out_dir) / "fusion_logo.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(results, indent=2))
     print(f"saved -> {out}")
 

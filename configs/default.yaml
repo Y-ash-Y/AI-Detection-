@@ -1,4 +1,5 @@
-# PMSA v2 default configuration.
+# Current SigLIP + forensic configuration.
+# For historical CLIP/DINO/NPR extraction, use configs/legacy_v2.yaml.
 # Experiment configs in configs/experiments/ override these keys shallowly.
 
 seed: 0
@@ -13,27 +14,25 @@ feature:
     - name: clip_l14
       weights: openai/clip-vit-large-patch14
       image_size: 224
-      enabled: true
+      enabled: false
     - name: dino_b14
       weights: facebook/dinov2-base
       image_size: 224
-      enabled: true
+      enabled: false
     - name: npr
       weights: ""
       image_size: 256
-      enabled: true
-    # SigLIP backbone for training your OWN robust probe (stronger than CLIP).
-    # Flip enabled: true to extract it, then: train_deploy.py --model probe --backbone siglip
+      enabled: false
+    # Frozen pretrained semantic features; the detector head is trained here.
     - name: siglip
       weights: google/siglip-base-patch16-224
       image_size: 224
-      enabled: false
-    # Forensic stream: handcrafted artifacts (spectral/color/noise) targeting
-    # documented frontier-generator weaknesses. Pairs with siglip in the fusion.
+      enabled: true
+    # Deterministic spectral/color/residual statistics, not a pretrained model.
     - name: forensic
       weights: ""
       image_size: 256
-      enabled: false
+      enabled: true
 
 calibration:
   alpha: 0.01          # target false-alarm rate on real images

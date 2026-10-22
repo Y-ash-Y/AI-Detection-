@@ -1,0 +1,24 @@
+# Historical CLIP + DINOv2 + NPR experiments only.
+# Other settings use Config's defaults. Old caches still lack v3 provenance.
+feature:
+  backbones:
+    - name: clip_l14
+      weights: openai/clip-vit-large-patch14
+      image_size: 224
+      enabled: true
+    - name: dino_b14
+      weights: facebook/dinov2-base
+      image_size: 224
+      enabled: true
+    - name: npr
+      weights: ""
+      image_size: 256
+      enabled: true
+    - name: siglip
+      weights: google/siglip-base-patch16-224
+      image_size: 224
+      enabled: false
+    - name: forensic
+      weights: ""
+      image_size: 256
+      enabled: false

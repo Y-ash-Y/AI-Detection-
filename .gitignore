@@ -7,7 +7,27 @@
 *.jpg
 *.jpeg
 *.png
-!docs/**/*.png
+*.webp
+*.heic
+*.HEIC
+*.pdf
+*.PDF
+*.docx
+*.doc
+*.pptx
+*.xlsx
+*.tex
+*.zip
+*.npz
+*.pt
+*.pkl
+*.safetensors
+.env
+.env.*
+!.env.example
+
+# Retired notebook and plot stay local / in existing Git history, not the release.
+/notebooks/kaggle_extract.ipynb
 
 # Python
 __pycache__/

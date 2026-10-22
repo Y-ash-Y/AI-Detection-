@@ -21,12 +21,21 @@ import math
 import numpy as np
 
 
+def _validate(scores, alpha):
+    if not np.isfinite(alpha) or not 0 < alpha < 1:
+        raise ValueError("alpha must be in (0,1)")
+    scores = np.asarray(scores, dtype=np.float64).ravel()
+    if not len(scores) or not np.isfinite(scores).all():
+        raise ValueError("Calibration requires nonempty finite scores")
+    return scores
+
+
 def empirical_threshold(real_scores: np.ndarray, alpha: float) -> float:
     """Plug-in NP threshold: smallest tau with empirical FPR <= alpha.
 
     tau = (1 - alpha) quantile of the real calibration scores.
     """
-    real_scores = np.asarray(real_scores, dtype=np.float64).ravel()
+    real_scores = _validate(real_scores, alpha)
     if real_scores.size == 0:
         raise ValueError("empirical_threshold: no calibration scores")
     # 'higher' interpolation => realized FPR <= alpha on the calibration set.
@@ -41,11 +50,10 @@ def conformal_threshold(real_scores: np.ndarray, alpha: float) -> float:
 
         P(score(X_real) > tau) <= alpha            (marginal, distribution-free)
 
-    Returns +inf when n is too small to certify the guarantee (m > n), i.e. you
-    cannot promise FPR <= alpha at this alpha without more real calibration data.
+    Returns +inf when m > n: valid but uninformative (zero FPR and zero power).
     Minimum n for a finite tau is ceil(1/alpha) - 1.
     """
-    real_scores = np.asarray(real_scores, dtype=np.float64).ravel()
+    real_scores = _validate(real_scores, alpha)
     n = real_scores.size
     if n == 0:
         raise ValueError("conformal_threshold: no calibration scores")
@@ -58,6 +66,8 @@ def conformal_threshold(real_scores: np.ndarray, alpha: float) -> float:
 
 def min_calibration_size(alpha: float) -> int:
     """Smallest n for which conformal_threshold can return a finite tau."""
+    if not np.isfinite(alpha) or not 0 < alpha < 1:
+        raise ValueError("alpha must be in (0,1)")
     return math.ceil(1.0 / alpha) - 1
 
 

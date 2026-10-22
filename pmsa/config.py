@@ -12,7 +12,7 @@ from typing import Any
 
 @dataclass
 class BackboneConfig:
-    name: str                       # registry key: "clip_l14", "dino_b14", "npr"
+    name: str                       # registry key, e.g. "siglip" or "forensic"
     weights: str = ""               # hf id or checkpoint; "" = library default
     image_size: int = 224
     enabled: bool = True
@@ -22,9 +22,12 @@ class BackboneConfig:
 class FeatureConfig:
     cache_dir: str = "feature_cache"
     backbones: list[BackboneConfig] = field(default_factory=lambda: [
-        BackboneConfig("clip_l14", "openai/clip-vit-large-patch14", 224),
-        BackboneConfig("dino_b14", "facebook/dinov2-base", 224),
-        BackboneConfig("npr", "", 256),  # native-res pixel-relation stream
+        # Retain historical encoders as explicit opt-ins, not default streams.
+        BackboneConfig("clip_l14", "openai/clip-vit-large-patch14", 224, False),
+        BackboneConfig("dino_b14", "facebook/dinov2-base", 224, False),
+        BackboneConfig("npr", "", 256, False),
+        BackboneConfig("siglip", "google/siglip-base-patch16-224", 224),
+        BackboneConfig("forensic", "", 256),
     ])
     batch_size: int = 64
     num_workers: int = 4
@@ -82,6 +85,7 @@ class Config:
                 raise KeyError(f"unknown config key: {k}")
             cur = getattr(cfg, k)
             if k == "feature" and isinstance(v, dict):
+                v = v.copy()
                 bbs = v.pop("backbones", None)
                 fc = FeatureConfig(**{**asdict(cur), **v, "backbones": cur.backbones})
                 if bbs is not None:

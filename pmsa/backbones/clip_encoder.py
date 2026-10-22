@@ -9,6 +9,7 @@ from __future__ import annotations
 import numpy as np
 
 from .base import Backbone, register
+from .hub_revision import resolve_hub_revision
 
 
 @register("clip_l14")
@@ -17,19 +18,22 @@ class CLIPEncoder(Backbone):
 
     def __init__(self, device: str = "cpu",
                  weights: str = "openai/clip-vit-large-patch14",
-                 image_size: int = 224, **kw):
+                 image_size: int = 224, revision=None, use_fast=False, **kw):
         super().__init__(device=device)
         import torch
         from transformers import CLIPModel, CLIPImageProcessor
 
         self.torch = torch
-        self.model = CLIPModel.from_pretrained(weights).vision_model.to(device).eval()
-        self.proj = CLIPModel.from_pretrained(weights).visual_projection.to(device).eval()
+        revision = resolve_hub_revision(weights, revision)
+        loaded = CLIPModel.from_pretrained(weights, revision=revision)
+        self.model = loaded.vision_model.to(device).eval()
+        self.proj = loaded.visual_projection.to(device).eval()
         for p in self.model.parameters():
             p.requires_grad_(False)
         for p in self.proj.parameters():
             p.requires_grad_(False)
-        self.processor = CLIPImageProcessor.from_pretrained(weights)
+        self.processor = CLIPImageProcessor.from_pretrained(weights, revision=revision, use_fast=use_fast)
+        self.load_config = {"weights": weights, "revision": revision, "use_fast": use_fast}
         self._image_size = image_size
 
     @property

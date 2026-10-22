@@ -73,6 +73,15 @@ def main():
     ap.add_argument("--out-train", default="feature_cache/manifest_diverse_train.csv")
     ap.add_argument("--out-test", default="feature_cache/manifest_chameleon_test.csv")
     args = ap.parse_args()
+    targets = [Path(args.out_train)] + ([Path(args.out_test)] if args.chameleon_dir else [])
+    if any(path.exists() for path in targets):
+        raise FileExistsError("Manifest output exists; choose NEW --out-train/--out-test paths")
+    if len(set(path.resolve() for path in targets)) != len(targets):
+        raise ValueError("Train and test manifest destinations must differ")
+    if args.chameleon_dir:
+        for label_dir in ("0_real", "1_fake"):
+            if not (Path(args.chameleon_dir) / label_dir).is_dir():
+                raise FileNotFoundError(f"Missing Chameleon/{label_dir}; check the dataset mount")
 
     train_records = []
     if args.genimage_root:
@@ -94,6 +103,8 @@ def main():
         print(f"coco real: {len(m)}")
 
     train = Manifest(train_records)
+    if not train_records or {r.label for r in train_records} != {0, 1}:
+        raise ValueError("Training manifest needs real and fake images")
     if args.balance:
         train = _balance(train, args.seed)
     _summary(train, "TRAIN")

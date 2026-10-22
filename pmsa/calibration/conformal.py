@@ -27,7 +27,17 @@ class Calibrator:
     method: str            # "conformal" | "empirical"
     n_cal: int             # number of real calibration scores used
     real_domain: str       # label of the real domain tau was fit on
-    certified: bool        # conformal guarantee certifiable at this n/alpha
+    certified: bool        # sufficient n for finite tau, NOT proof of exchangeability
+
+    def __post_init__(self):
+        if (not np.isfinite(self.alpha) or not 0 < self.alpha < 1
+                or self.method not in ("conformal", "empirical")
+                or not isinstance(self.n_cal, int) or isinstance(self.n_cal, bool)
+                or self.n_cal < 1 or np.isnan(self.tau) or self.tau == -np.inf
+                or (self.method == "empirical" and not np.isfinite(self.tau))):
+            raise ValueError("Invalid calibrator metadata")
+        if self.certified and (self.method != "conformal" or self.n_cal < min_calibration_size(self.alpha)):
+            raise ValueError("Inconsistent finite-threshold calibration metadata")
 
     @classmethod
     def fit(
@@ -54,7 +64,10 @@ class Calibrator:
 
     def predict(self, scores: np.ndarray) -> np.ndarray:
         """1 = predicted FAKE, 0 = predicted REAL."""
-        return (np.asarray(scores).ravel() > self.tau).astype(int)
+        scores = np.asarray(scores).ravel()
+        if not np.isfinite(scores).all():
+            raise ValueError("Prediction scores must be finite")
+        return (scores > self.tau).astype(int)
 
     def fpr_on(self, real_scores: np.ndarray) -> float:
         """Realized FPR when this tau is applied to a (possibly shifted) real set."""

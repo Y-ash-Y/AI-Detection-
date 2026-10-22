@@ -1,16 +1,7 @@
-"""Layer 1 — provenance / watermark check (best-effort, dependency-light).
+"""Unverified metadata keyword hints, NOT a C2PA or SynthID verifier.
 
-The most reliable real-world signal that an image came from a top generator is the
-provenance metadata those vendors embed:
-  - OpenAI (GPT-Image / DALL-E): C2PA content credentials.
-  - Google (Nano Banana / Gemini / Imagen): SynthID watermark + C2PA.
-  - Adobe Firefly, others: C2PA.
-
-When that metadata is present, it's near-certain evidence. When it's absent the
-result is INCONCLUSIVE (it may have been stripped by a screenshot or re-save), and
-we fall back to the forensic model (Layer 2). This module does a lightweight byte +
-EXIF/XMP scan — it does not cryptographically verify C2PA manifests (that needs the
-`c2pa` native lib), so treat hits as strong hints, not proofs.
+Markers can be spoofed; content credentials can occur on camera photographs.
+Absence proves nothing. A byte scan cannot detect an invisible SynthID watermark.
 """
 from __future__ import annotations
 
@@ -23,7 +14,7 @@ _MARKERS = {
     b"c2pa": "C2PA content credentials",
     b"jumbf": "C2PA/JUMBF manifest",
     b"contentcredentials": "C2PA content credentials",
-    b"synthid": "Google SynthID watermark",
+    b"synthid": "SynthID text reference (watermark not verified)",
     b"made with google ai": "Google AI",
     b"imagen": "Google Imagen",
     b"gemini": "Google Gemini",
@@ -44,17 +35,22 @@ class Provenance:
     found: bool
     signals: list[str] = field(default_factory=list)
     note: str = ""
+    verified: bool = False
 
     def as_dict(self) -> dict:
-        return {"found": self.found, "signals": self.signals, "note": self.note}
+        return {"found": self.found, "signals": self.signals, "note": self.note,
+                "verified": self.verified}
 
 
 def check_provenance(path: str | Path, scan_bytes: int = 2_000_000) -> Provenance:
-    """Scan a file for embedded AI-provenance markers (C2PA / SynthID / vendor tags)."""
+    """Scan bounded file bytes/metadata for hints; never verify origin."""
+    if scan_bytes < 1:
+        raise ValueError("scan_bytes must be positive")
     path = Path(path)
     hits: set[str] = set()
     try:
-        raw = path.read_bytes()[:scan_bytes].lower()
+        with path.open("rb") as f:
+            raw = f.read(scan_bytes).lower()
         for marker, label in _MARKERS.items():
             if marker in raw:
                 hits.add(label)
@@ -78,9 +74,9 @@ def check_provenance(path: str | Path, scan_bytes: int = 2_000_000) -> Provenanc
     if hits:
         return Provenance(
             found=True, signals=sorted(hits),
-            note="Embedded AI-provenance metadata found — strong evidence of AI origin.",
+            note="Unverified metadata keywords found. They may be spoofed and do not establish AI origin.",
         )
     return Provenance(
         found=False, signals=[],
-        note="No provenance metadata (may be stripped) — deferring to forensic model.",
+        note="No recognized metadata hints. Absence does not establish real or AI origin.",
     )

@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from pmsa.config import Config
 from pmsa.data import scan_genimage, scan_real_dir, scan_fake_dir
@@ -34,6 +36,8 @@ def main():
     ap.add_argument("--fake-dir", nargs="*", default=[],
                     help="extra pure-fake dirs as SOURCE:PATH (in-the-wild)")
     ap.add_argument("--tag", default="train", help="cache filename tag")
+    ap.add_argument("--batch-size", type=int)
+    ap.add_argument("--num-workers", type=int)
     ap.add_argument("--manifest", default=None,
                     help="extract from a prebuilt manifest CSV (skips arg-based scan)")
     ap.add_argument("--backbones", nargs="*", default=None,
@@ -48,19 +52,39 @@ def main():
     args = ap.parse_args()
 
     cfg = Config.load(args.config)
+    if args.batch_size is not None:
+        cfg.feature.batch_size = args.batch_size
+    if args.num_workers is not None:
+        cfg.feature.num_workers = args.num_workers
+    if cfg.feature.batch_size < 1 or cfg.feature.num_workers < 0:
+        raise ValueError("Positive batch size and nonnegative workers required")
+    if not args.tag or Path(args.tag).name != args.tag or args.tag in (".", ".."):
+        raise ValueError("tag must be a simple filename component")
     device = args.device or "cuda"
 
     def selected_backbones():
         if args.backbones:  # explicit override (ignores enabled flag)
             by_name = {b.name: b for b in cfg.feature.backbones}
-            return [by_name[n] for n in args.backbones if n in by_name]
+            if len(set(args.backbones)) != len(args.backbones) or any(n not in by_name for n in args.backbones):
+                raise ValueError("Unknown or repeated backbone name")
+            return [by_name[n] for n in args.backbones]
         return [b for b in cfg.feature.backbones if b.enabled]
+
+    backbones = selected_backbones()
+    if not backbones:
+        raise ValueError("No backbones selected")
+    cache_dir = Path(cfg.feature.cache_dir)
+    targets = [cache_dir / f"{b.name}_{args.tag}.npz" for b in backbones]
+    if not args.manifest:
+        targets.append(cache_dir / f"manifest_{args.tag}.csv")
+    if any(p.exists() for p in targets):
+        raise FileExistsError("This extraction tag already has outputs; choose a NEW tag")
 
     if args.manifest:
         manifest = Manifest.from_csv(args.manifest)
         print(f"manifest: {len(manifest)} images from {args.manifest}")
         cache_dir = Path(cfg.feature.cache_dir)
-        for bb in selected_backbones():
+        for bb in backbones:
             extract_backbone(
                 manifest, bb.name, cache_dir / f"{bb.name}_{args.tag}.npz",
                 device=device, batch_size=cfg.feature.batch_size,
@@ -93,7 +117,7 @@ def main():
     manifest.to_csv(cache_dir / f"manifest_{args.tag}.csv")
     print(f"manifest: {len(manifest)} total -> {cache_dir}/manifest_{args.tag}.csv")
 
-    for bb in selected_backbones():
+    for bb in backbones:
         out = cache_dir / f"{bb.name}_{args.tag}.npz"
         extract_backbone(
             manifest, bb.name, out, device=device,

@@ -25,6 +25,7 @@ class ImageRecord:
     label: int      # 1 fake, 0 real
     domain: str     # real-image domain
     source: str     # generator name, or "real"
+    group_id: str = ""  # shared original/edit or near-duplicate identifier, if known
 
 
 class Manifest:
@@ -57,26 +58,19 @@ class Manifest:
 
     # ---- protocols ------------------------------------------------------
     def leave_one_generator_out(self, held_out: str) -> tuple["Manifest", "Manifest"]:
-        """LOGO: train on all generators except `held_out` (+ all reals);
-        test on the held-out generator (+ all reals). The GenImage protocol."""
-        if held_out not in self.generators:
-            raise ValueError(f"{held_out} not in {self.generators}")
-        train = Manifest([r for r in self.records
-                          if r.label == 0 or r.source != held_out])
-        test = Manifest([r for r in self.records
-                         if r.label == 0 or r.source == held_out])
-        return train, test
+        """LOGO with disjoint real groups; raw-file auditing is separate."""
+        from .splits import group_ids, logo_split
+        groups = group_ids([r.path for r in self.records], related=[r.group_id for r in self.records])
+        tr, te = logo_split([r.label for r in self.records], [r.source for r in self.records], groups, held_out)
+        return tuple(Manifest([self.records[i] for i in ix]) for ix in (tr, te))
 
     def three_way_split(self, frac=(0.7, 0.15, 0.15), seed=0
                         ) -> tuple["Manifest", "Manifest", "Manifest"]:
         """Train / calibration / test. Calibration is the real-only pool used to
         fit tau; keeping it disjoint from test is required for an honest FPR."""
-        assert abs(sum(frac) - 1.0) < 1e-6
-        rng = np.random.default_rng(seed)
-        idx = rng.permutation(len(self.records))
-        n = len(idx)
-        a, b = int(frac[0] * n), int((frac[0] + frac[1]) * n)
-        parts = [idx[:a], idx[a:b], idx[b:]]
+        from .splits import group_ids, grouped_split
+        groups = group_ids([r.path for r in self.records], related=[r.group_id for r in self.records])
+        parts = grouped_split(groups, frac, seed)
         return tuple(Manifest([self.records[i] for i in p]) for p in parts)
 
     # ---- io -------------------------------------------------------------
@@ -84,7 +78,7 @@ class Manifest:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", newline="") as f:
-            w = csv.DictWriter(f, fieldnames=["path", "label", "domain", "source"])
+            w = csv.DictWriter(f, fieldnames=["path", "label", "domain", "source", "group_id"])
             w.writeheader()
             for r in self.records:
                 w.writerow(asdict(r))
@@ -93,6 +87,6 @@ class Manifest:
     def from_csv(cls, path: str | Path) -> "Manifest":
         with open(path, newline="") as f:
             recs = [ImageRecord(path=row["path"], label=int(row["label"]),
-                                domain=row["domain"], source=row["source"])
+                                domain=row["domain"], source=row["source"], group_id=row.get("group_id", ""))
                     for row in csv.DictReader(f)]
         return cls(recs)

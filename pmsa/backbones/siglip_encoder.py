@@ -1,16 +1,14 @@
-"""SigLIP vision encoder, frozen. A stronger semantic backbone than CLIP-L/14.
+"""Google's frozen SigLIP vision backbone, credited rather than trained here.
 
-SigLIP (Google) is pretrained on ~10B image-text pairs, so its frozen features are
-more robust to real-world photo diversity than CLIP — which is exactly the weakness
-that made the tiny-genimage CLIP probe false-alarm on ordinary photos. Use this as a
-drop-in backbone: extract once, train your own linear probe / head on top. The
-backbone is credited (you don't train SigLIP itself); the detector head is yours.
+The custom detector head learns from these embeddings. Whether this backbone is
+better than CLIP for a particular domain must be measured, not assumed from scale.
 """
 from __future__ import annotations
 
 import numpy as np
 
 from .base import Backbone, register
+from .hub_revision import resolve_hub_revision
 
 
 @register("siglip")
@@ -19,16 +17,18 @@ class SiglipEncoder(Backbone):
 
     def __init__(self, device: str = "cpu",
                  weights: str = "google/siglip-base-patch16-224",
-                 image_size: int = 224, **kw):
+                 image_size: int = 224, revision=None, use_fast=False, **kw):
         super().__init__(device=device)
         import torch
         from transformers import SiglipVisionModel, AutoImageProcessor
 
         self.torch = torch
-        self.model = SiglipVisionModel.from_pretrained(weights).to(device).eval()
+        revision = resolve_hub_revision(weights, revision)
+        self.model = SiglipVisionModel.from_pretrained(weights, revision=revision).to(device).eval()
         for p in self.model.parameters():
             p.requires_grad_(False)
-        self.processor = AutoImageProcessor.from_pretrained(weights)
+        self.processor = AutoImageProcessor.from_pretrained(weights, revision=revision, use_fast=use_fast)
+        self.load_config = {"weights": weights, "revision": revision, "use_fast": use_fast}
         self.dim = int(self.model.config.hidden_size)
         self._image_size = image_size
 
