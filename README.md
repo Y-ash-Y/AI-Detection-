@@ -5,8 +5,14 @@ a custom forensic statistics stream, trained detector heads, and real-only
 threshold calibration. It explores generalization and false alarms under domain
 shift—not universal proof that an image is real or AI-generated.
 
-[Historical live demo](https://huggingface.co/spaces/Xcalivier/ai-generated-detector)
-(the Space is not automatically updated by local repository changes).
+[Live demo](https://huggingface.co/spaces/Xcalivier/ai-generated-detector) ·
+[CI](https://github.com/Y-ash-Y/AI-Detection-/actions) ·
+[Architecture](docs/ARCHITECTURE.md)
+
+The minimal hosted release was verified on 2026-10-23 with a synthetic HTTP upload,
+invalid-file rejection and released-file integrity checks. It serves the fixed
+fresh-full fusion seed 0 reference, not an experimental adaptation candidate.
+See the [deployment receipt](docs/evidence/deployment_summary.json).
 
 ## Ownership and architecture
 
@@ -48,7 +54,8 @@ Thresholds used separate broad calibration reals at target FPR 5%, not Chameleon
 test scores. That target did **not** transfer. The [aggregate evidence snapshot](docs/evidence/fresh_full_summary.json)
 records reviewed archive identity and scope; full per-image evidence stays private.
 See [engineering status](docs/ENGINEERING_STATUS.md) for completed and open gates.
-No model or hosted Space was automatically replaced.
+The hosted release was a separate explicit deployment; no model was retrained or
+selected automatically from these results.
 
 ### Earlier results — separate experiments
 

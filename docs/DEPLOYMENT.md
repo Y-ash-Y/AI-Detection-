@@ -1,5 +1,11 @@
 # Minimal Hugging Face serving release
 
+The release was verified on 2026-10-23. The Space is running; all 32 published
+file hashes matched the staged payload, a synthetic HTTP upload succeeded, and
+invalid input was rejected. The hosted score matched the local CPU score within
+the existing parity tolerance. GitHub CI passed for the serving-code commit.
+See `evidence/deployment_summary.json` for the exact revisions and scope.
+
 Deployment is separate from source publication and model improvement. The Space
 uses the fixed fresh-full fusion seed 0 reference and its unchanged calibrator,
 not a best diagnostic seed or an unpromoted modern-data candidate.

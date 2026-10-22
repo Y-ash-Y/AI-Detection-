@@ -24,14 +24,16 @@ matching-extractor Python 3.12 run passed 200 tests, with two
 optional skips and four existing scikit-learn/SciPy solver-option warnings.
 The full Gradio-enabled environment exercised the app tests as part of its
 full test pass.
-GitHub CI was not dispatched and the hosted demo was not changed by this pass.
+The original hardening pass did not deploy. A subsequent explicitly authorized
+release is now verified: GitHub CI passed, the Space is running, all 32 released
+file hashes match, and the synthetic hosted HTTP upload/invalid-file checks pass.
 
 Deployment is now a separate, explicitly authorized release step. A fresh matching
 Python 3.12 environment passed a synthetic HTTP upload and invalid-file rejection.
 The Space SDK's automatic Gradio MCP/OAuth extras require Pydantic 2.12.5; the
 serving template pins that compatible set while retaining extractor versions.
-Hosted verification is recorded separately; local success alone is not a hosted
-deployment claim. See `DEPLOYMENT.md`.
+Hosted verification is recorded in `evidence/deployment_summary.json`; local
+success alone was not used as a hosted-deployment claim. See `DEPLOYMENT.md`.
 
 All six retained fresh-full neural checkpoints were also safely loaded and
 replayed on the same 26,017 cached external representatives. Every replay passed,
@@ -52,7 +54,7 @@ calibrator and prediction-file hashes stayed unchanged.
 | Private camera/GPT development checks | Completed diagnostics | Real-photo false alarms remain |
 | Training-only JPEG/resizing pilot | Completed, not promoted | No targeted-error improvement |
 | Matched extension and new confirmation | Prepared, deferred | No new training or improvement claim |
-| Hosted HTTP upload path | Not validated by this pass | Local tests are not a live-host audit |
+| Hosted HTTP upload path | Synthetic upload and rejection verified | Not accuracy, privacy or load certification |
 
 The [fresh-full aggregate evidence](evidence/fresh_full_summary.json) records
 fusion mean Chameleon AUC 0.9105, frozen-threshold mean FPR 8.25% and TPR 64.66%
