@@ -199,10 +199,6 @@ feature_cache/    local caches; ignored
 outputs/          local models and results; ignored
 ```
 
-Private interview books, image collections, caches and checkpoints stay out of Git.
-The app does not train on or publish uploads; Gradio temporarily caches them.
-Hosting/log retention is a separate concern—avoid sensitive uploads to public demos.
-
 ## Credits
 
 Google SigLIP; GenImage, FFHQ, COCO, StyleGAN2; Chameleon/AIDE benchmark authors;
