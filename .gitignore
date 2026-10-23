@@ -43,13 +43,8 @@ venv/
 .vscode/
 .claude/
 
-# Personal interview preparation — local only, including compiled/exported copies
-/docs/interview_book/
-/docs/interview_book.*
-/docs/interview_prep.*
-/interview_book/
-/interview_book.*
-/interview_prep.*
+# Personal docs — local only, including compiled/exported copies
+/docs/
 
 # Generated notebook and LaTeX build files (keep report sources and final PDFs)
 .ipynb_checkpoints/
