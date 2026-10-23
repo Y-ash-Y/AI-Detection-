@@ -14,8 +14,8 @@ os.environ.setdefault("OMP_NUM_THREADS", "2")
 import torch
 torch.set_num_threads(2)
 
-from app import build_demo
+from app import build_demo, launch_options
 
 if __name__ == "__main__":
     build_demo().launch(server_name=os.getenv("GRADIO_SERVER_NAME","0.0.0.0"),
-        server_port=int(os.getenv("GRADIO_SERVER_PORT","7860")), max_file_size="20mb")
+        server_port=int(os.getenv("GRADIO_SERVER_PORT","7860")), **launch_options())

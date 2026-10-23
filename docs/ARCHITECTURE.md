@@ -83,6 +83,15 @@ The UI score-margin band is heuristic abstention, not calibrated uncertainty.
 Neither a logit nor its sigmoid is a validated per-image AI probability here.
 A below-threshold score does not prove camera origin.
 
+This does not mean the network is non-probabilistic: with score `f(x)`, its
+Bernoulli class-probability estimate is `p_theta(y=1|x) = sigmoid(f(x))`, and
+binary cross-entropy fits that estimate on the training distribution. The missing
+claim is *empirical probability calibration*: examples assigned approximately
+0.9 should be generated approximately 90% of the time in the population of use.
+The existing real-only `Calibrator` fits `tau`; it does not fit or validate that
+mapping. A separate, disjoint probability-calibration and evaluation protocol is
+needed before a user-facing percentage is justified as reliable confidence.
+
 ## Design choices and trade-offs
 
 - Frozen backbones make experiments cheap after extraction, but cannot learn

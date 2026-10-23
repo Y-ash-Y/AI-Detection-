@@ -6,6 +6,11 @@ invalid input was rejected. The hosted score matched the local CPU score within
 the existing parity tolerance. GitHub CI passed for the serving-code commit.
 See `evidence/deployment_summary.json` for the exact revisions and scope.
 
+The subsequent UI-only release uses a clear result card, upload preview and
+collapsed Developer analysis panel, without an app benchmark tab. Its 32 remote
+file hashes and synthetic HTTP regression passed; model/calibrator bytes were
+unchanged. See `evidence/ui_release_summary.json` for its revision and scope.
+
 Deployment is separate from source publication and model improvement. The Space
 uses the fixed fresh-full fusion seed 0 reference and its unchanged calibrator,
 not a best diagnostic seed or an unpromoted modern-data candidate.

@@ -94,3 +94,88 @@ def test_missing_bundle_does_not_use_external_fallback(tmp_path, monkeypatch):
         monkeypatch.delenv(key, raising=False)
     with pytest.raises(ValueError, match="Legacy artifacts"):
         app._load()
+
+
+@pytest.mark.parametrize("score,label", [(2., "AI-generated signal"),
+    (-2., "No AI signal detected"), (.1, "Uncertain")])
+def test_result_card_has_three_states_without_fake_probability(score, label):
+    from app import render_verdict
+    from pmsa.inference import Verdict
+    result, metrics, detail = render_verdict(Verdict(label, score > 0, score, 0., score,
+        per_stream={"siglip": -1., "forensic": score + .5}, combiner_bias=.5))
+    assert 'aria-live="polite"' in result
+    assert "not a confidence percentage" in result
+    assert "probability calibration has not been validated" in result
+    assert "AI probability" not in result
+    assert metrics["Score (not a probability)"] == score
+    assert "Contributions plus bias equal the score" in detail
+    assert "not causal" in detail
+    if label == "Uncertain":
+        assert "Inconclusive" in result
+        assert metrics["Binary threshold exceeded"] is True
+
+
+def test_html_result_escapes_untrusted_text():
+    from app import render_verdict
+    from pmsa.inference import Verdict
+    result, _, detail = render_verdict(Verdict("No AI signal detected", False, -1., 0., -1.,
+        explanation='<img src=x onerror="alert(1)">',
+        provenance={"note": "<script>bad()</script>"}))
+    assert "<img src=x" not in result and "&lt;img" in result
+    assert "<script>" not in detail
+
+
+def test_preview_preserves_original_and_does_not_load_model(tmp_path, monkeypatch):
+    import app
+    path = tmp_path / "preview.png"
+    Image.new("RGB", (1400, 1000), "blue").save(path)
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    monkeypatch.setattr(app, "_load", lambda: pytest.fail("Preview must not load detector"))
+    preview, result, metrics, detail = app.preview_upload(str(path))
+    assert preview.width <= 900 and preview.height <= 600
+    assert result == app.EMPTY_RESULT and metrics == {}
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == digest
+    assert app.preview_upload(None)[0] is None
+
+
+def test_bad_preview_clears_previous_diagnostics(tmp_path):
+    from app import preview_upload
+    path = tmp_path / "invalid.png"
+    path.write_text("not an image")
+    preview, result, metrics, detail = preview_upload(str(path))
+    assert preview is None and metrics == {}
+    assert "Cannot preview" in result
+    assert "No model analysis" in detail
+
+
+def test_analysis_locks_upload_until_result_or_error():
+    from app import begin_analysis, finish_analysis
+    started = begin_analysis()
+    assert len(started) == 6
+    assert all(update["interactive"] is False for update in started[3:])
+    assert all(update["interactive"] is True for update in finish_analysis())
+
+
+def test_upload_only_enables_analysis_after_valid_preview(tmp_path):
+    from app import prepare_upload_ui
+    assert prepare_upload_ui(None)[-1]["interactive"] is False
+    path = tmp_path / "valid.png"
+    Image.new("RGB", (4, 5)).save(path)
+    assert prepare_upload_ui(str(path))[-1]["interactive"] is True
+
+
+def test_demo_exposes_plain_result_and_developer_diagnostics(monkeypatch):
+    monkeypatch.setenv("GRADIO_ANALYTICS_ENABLED", "false")
+    from app import build_demo, launch_options
+    demo = build_demo()
+    config = demo.get_config_file()
+    serialized = str(config)
+    assert "How reliable is it?" not in serialized
+    assert "Under the hood" not in serialized
+    assert "0.9105" not in serialized and "64.66%" not in serialized
+    developer = next(c for c in config["components"]
+                     if c["props"].get("label") == "Developer analysis")
+    assert developer["type"] == "accordion" and developer["props"]["open"] is False
+    assert "pmsa-preview" in serialized
+    assert any(d.get("api_name") == "classify" for d in config["dependencies"])
+    assert "pmsa-card" in launch_options()["css"]

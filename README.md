@@ -31,6 +31,13 @@ The inference path is:
 5. Show a cautious verdict, signed contributions and unverified metadata hints.
 
 The app does **not** display sigmoid scores as calibrated AI probabilities.
+Its interface pairs an upload preview and plain-language verdict with optional
+signed score contributions and raw diagnostics in a collapsed Developer analysis panel.
+A visual raw-score indicator shows the threshold—not a confidence percentage.
+The [UI release receipt](docs/evidence/ui_release_summary.json) records verified
+hosted checks; the model and calibrator are unchanged.
+See [what the benchmark numbers mean](docs/BENCHMARK_GUIDE.md) for an honest
+assessment and a prioritized improvement plan.
 Metadata keyword scanning does not verify C2PA or SynthID and never overrides
 the forensic score. Logos and other computer-made graphics are not automatically
 generative AI; edited photographs may have mixed origins.
