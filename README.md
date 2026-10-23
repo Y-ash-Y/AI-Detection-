@@ -7,12 +7,13 @@ shift—not universal proof that an image is real or AI-generated.
 
 [Live demo](https://huggingface.co/spaces/Xcalivier/ai-generated-detector) ·
 [CI](https://github.com/Y-ash-Y/AI-Detection-/actions) ·
-[Architecture](docs/ARCHITECTURE.md)
+[Architecture](#ownership-and-architecture)
 
 The minimal hosted release was verified on 2026-10-23 with a synthetic HTTP upload,
 invalid-file rejection and released-file integrity checks. It serves the fixed
 fresh-full fusion seed 0 reference, not an experimental adaptation candidate.
-See the [deployment receipt](docs/evidence/deployment_summary.json).
+The latest interface combines upload and preview in one panel, with optional
+developer diagnostics. The UI release did not change the trained model.
 
 ## Ownership and architecture
 
@@ -35,10 +36,8 @@ Its single image box changes from a drop target into a preview after upload,
 while preserving the original file for inference. A plain-language verdict has optional
 signed score contributions and raw diagnostics in a collapsed Developer analysis panel.
 A visual raw-score indicator shows the threshold—not a confidence percentage.
-The [UI release receipt](docs/evidence/ui_release_summary.json) records verified
-hosted checks; the model and calibrator are unchanged.
-See [what the benchmark numbers mean](docs/BENCHMARK_GUIDE.md) for an honest
-assessment and a prioritized improvement plan.
+Hosted checks covered a synthetic image upload, invalid-file rejection and
+score agreement with local inference—not new accuracy or privacy certification.
 Metadata keyword scanning does not verify C2PA or SynthID and never overrides
 the forensic score. Logos and other computer-made graphics are not automatically
 generative AI; edited photographs may have mixed origins.
@@ -60,9 +59,11 @@ confirmation result is claimed from that preparation.
 
 These are means across seeds 0/1/2, not confidence intervals or best-seed results.
 Thresholds used separate broad calibration reals at target FPR 5%, not Chameleon
-test scores. That target did **not** transfer. The [aggregate evidence snapshot](docs/evidence/fresh_full_summary.json)
-records reviewed archive identity and scope; full per-image evidence stays private.
-See [engineering status](docs/ENGINEERING_STATUS.md) for completed and open gates.
+test scores. That target did **not** transfer. AUC measures ranking quality, not
+accuracy or confidence for one image. At these frozen thresholds, fusion detected
+about 65 of 100 generated images and falsely flagged about 8 of 100 real images
+on this benchmark. These rates do not establish performance on current GPT images.
+Full per-image evidence and personal collections are not included in this repository.
 The hosted release was a separate explicit deployment; no model was retrained or
 selected automatically from these results.
 
@@ -89,8 +90,9 @@ adaptation examples the reported means were 82.7% and 90.7%. These are small-sam
 experiments; adapted models are not zero-shot, seed spread is not a confidence
 interval, and the collections do not represent every current generator/version.
 
-See the [model card](docs/MODEL_CARD.md) for exact reported intervals, limitations,
-ownership, privacy and evidence status. No SOTA or production-reliability claim is made.
+No SOTA or production-reliability claim is made. Small curated frontier
+collections, previously inspected benchmarks and reused development examples
+must not be treated as independent evidence of universal generator detection.
 
 ### Recovered-cache evaluation (exploratory)
 
@@ -100,12 +102,13 @@ group splits. On 26,017 retained Chameleon feature representatives, mean AUC was
 0.9147 for fusion. Fusion's false-alarm rate was 7.91% at a frozen threshold
 targeting 5%, so strong ranking did not establish threshold transfer. A separate
 2,000-real target calibration supplement reduced false alarms toward the target
-but cost detection power. See the model card for exact results and qualifications.
+but cost detection power. Target-domain threshold adaptation is not a zero-shot
+threshold result and does not fix poor score ordering.
 
 Missing legacy extraction provenance still prevents certifying image-to-app
 equivalence. Chameleon was previously viewed, and these are not newly blinded
-or production-release results. The complete local evidence is preserved under
-`outputs/recovered_eval_v3_01/`; existing deployment files remain unchanged.
+or production-release results. These exploratory results are separate from the
+fresh metadata-bearing evaluation and the fixed hosted model.
 
 ## Reliability safeguards
 
@@ -140,14 +143,29 @@ creates disposable noise images with arbitrary fixture labels: it exercises the
 forensic image-to-verdict path, **not accuracy**, and leaves no usable model.
 CI installs CPU Torch; local checks do not imply GitHub CI or the hosted demo ran.
 
-See [architecture and rationale](docs/ARCHITECTURE.md) for the pipeline, equations,
-module contracts, calibration assumptions and design trade-offs.
+The main implementation is in [inference](pmsa/inference.py),
+[fusion heads](pmsa/models/fusion.py), [calibration](pmsa/calibration/conformal.py)
+and [shared preprocessing](pmsa/preprocessing.py).
 
 ## Reproduce or preview
 
-The [reproduction guide](docs/REPRODUCIBILITY.md) covers:
-legacy-cache exploratory experiments, fresh extraction on Kaggle, missing frontier
-cache recovery, independent training/evaluation, and an explicit legacy app preview.
+The source includes runnable entry points for each stage:
+
+| Stage | Entry point |
+|---|---|
+| Fresh Kaggle evaluation | [Notebook](notebooks/kaggle_fresh_evaluation.ipynb) |
+| Feature extraction | [01_extract_features.py](scripts/01_extract_features.py) |
+| Independent head comparison | [10_evaluate_recovered.py](scripts/10_evaluate_recovered.py) |
+| Raw-data audit | [13_audit_raw_data.py](scripts/13_audit_raw_data.py) |
+| Serving-parity checks | [15_check_serving_parity.py](scripts/15_check_serving_parity.py) |
+| Reviewed data preparation | [17_prepare_data.py](scripts/17_prepare_data.py) |
+| Minimal Space release staging | [19_prepare_space.py](scripts/19_prepare_space.py) |
+
+Run a script with `--help` for its required inputs. Datasets, caches and model
+weights are not bundled with a fresh Git checkout. The fixed serving model files
+are published separately in the [Space model directory](https://huggingface.co/spaces/Xcalivier/ai-generated-detector/tree/main/model).
+Local inference requires a complete trusted bundle with matching model,
+calibrator, split receipt and bundle metadata; do not mix files from different runs.
 
 After creating a complete trusted v3 bundle:
 
@@ -194,12 +212,17 @@ scripts/          extraction, training, evaluation and historical experiments
 examples/         disposable offline synthetic pipeline smoke
 tests/            offline regression and tiny synthetic integration tests
 app.py            Gradio interface; temporary file handling and diagnostics
-docs/             public model card and reproduction guide
+deployment/       minimal Hugging Face Space templates
 configs/          experiment settings
 reference/        historical v1 baseline
 feature_cache/    local caches; ignored
 outputs/          local models and results; ignored
 ```
+
+The public project overview is maintained in this README. The `docs/` directory
+contains local personal/reference materials, is Git-ignored, and is not required
+to run the application or tests. Private images, study materials, feature caches
+and local experiment artifacts are not part of the public repository.
 
 ## Credits
 
