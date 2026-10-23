@@ -1,7 +1,9 @@
 # Engineering readiness — 2026-10-23
 
 This is a source/test hardening pass, **not a new trained model or deployment**.
-The matched-scene collection experiment is deferred at the user's request.
+The matched-scene experiment was deferred; its no-score coverage review and
+collection preparation resumed on 2026-10-23. Additional matched inputs are
+still needed before training or independent confirmation can run.
 
 ## What is in place
 
@@ -53,7 +55,7 @@ calibrator and prediction-file hashes stayed unchanged.
 | Cached head and sampled raw-image parity | Completed checks | Consistency, not accuracy certification |
 | Private camera/GPT development checks | Completed diagnostics | Real-photo false alarms remain |
 | Training-only JPEG/resizing pilot | Completed, not promoted | No targeted-error improvement |
-| Matched extension and new confirmation | Prepared, deferred | No new training or improvement claim |
+| Matched extension and new confirmation | Collection preparation resumed | Additional inputs needed; no new training or improvement claim |
 | Hosted HTTP upload path | Synthetic upload and rejection verified | Not accuracy, privacy or load certification |
 
 The [fresh-full aggregate evidence](evidence/fresh_full_summary.json) records
@@ -68,7 +70,7 @@ earlier 0.8986 result and later private development candidates.
 2. Match recorded extractor versions or re-extract into a new run; do not bypass
    a runtime guard merely to get an interface running.
 3. Obtain new confirmation data before claiming a model improvement. This phase
-   is deferred, not silently marked complete.
+   has restarted at the collection stage, not silently been marked complete.
 4. If deployment is requested later, test HTTP uploads, latency, memory, logging,
    temporary retention and abuse controls in that environment separately.
 

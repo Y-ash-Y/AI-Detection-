@@ -40,8 +40,9 @@ Fusion ranking is stronger than the linear probe, but false alarms still exceed
 the intended 5% under shift. This is not an accuracy increase caused by the later
 software hardening. Later small private development checks found persistent real
 false alarms; a training-only JPEG/resize pilot did not resolve its targeted
-errors and was not promoted. The proposed matched-scene confirmation phase is
-deferred. No evaluated seed is automatically the hosted application's model.
+errors and was not promoted. Matched-scene collection preparation has resumed,
+but new training and independent confirmation are not complete. No evaluated
+seed is automatically the hosted application's model.
 
 ## Historical evidence (separate from the fresh full run)
 

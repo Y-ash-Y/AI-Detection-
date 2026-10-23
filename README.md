@@ -31,7 +31,8 @@ The inference path is:
 5. Show a cautious verdict, signed contributions and unverified metadata hints.
 
 The app does **not** display sigmoid scores as calibrated AI probabilities.
-Its interface pairs an upload preview and plain-language verdict with optional
+Its single image box changes from a drop target into a preview after upload,
+while preserving the original file for inference. A plain-language verdict has optional
 signed score contributions and raw diagnostics in a collapsed Developer analysis panel.
 A visual raw-score indicator shows the threshold—not a confidence percentage.
 The [UI release receipt](docs/evidence/ui_release_summary.json) records verified
@@ -47,7 +48,8 @@ generative AI; edited photographs may have mixed origins.
 Fresh metadata-bearing extraction, three-seed head evaluation and sampled
 serving-parity checks have completed. Chameleon was previously viewed, so this is
 reproducible benchmark evaluation, not a newly blinded holdout or a production
-release. The new-image collection phase is deferred.
+release. Category-matched data collection has restarted; no new training or
+confirmation result is claimed from that preparation.
 
 | Fresh full run: Chameleon, 26,017 representatives | Mean AUC | FPR at frozen threshold | TPR at frozen threshold |
 |---|---:|---:|---:|

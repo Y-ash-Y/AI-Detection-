@@ -158,10 +158,21 @@ def test_analysis_locks_upload_until_result_or_error():
 
 def test_upload_only_enables_analysis_after_valid_preview(tmp_path):
     from app import prepare_upload_ui
-    assert prepare_upload_ui(None)[-1]["interactive"] is False
+    assert prepare_upload_ui(None)[-2]["interactive"] is False
     path = tmp_path / "valid.png"
     Image.new("RGB", (4, 5)).save(path)
-    assert prepare_upload_ui(str(path))[-1]["interactive"] is True
+    result = prepare_upload_ui(str(path))
+    assert result[-2]["interactive"] is True
+    assert result[0]["visible"] is True and result[-1]["visible"] is False
+
+
+def test_single_upload_panel_restores_drop_target_on_clear():
+    from app import clear_upload_ui, EMPTY_RESULT
+    file_update, preview_update, result, diagnostics, detail, button_update = clear_upload_ui()
+    assert file_update["visible"] is True and file_update["value"] is None
+    assert preview_update["visible"] is False and preview_update["value"] is None
+    assert result == EMPTY_RESULT and diagnostics == {}
+    assert button_update["interactive"] is False
 
 
 def test_demo_exposes_plain_result_and_developer_diagnostics(monkeypatch):
@@ -177,5 +188,8 @@ def test_demo_exposes_plain_result_and_developer_diagnostics(monkeypatch):
                      if c["props"].get("label") == "Developer analysis")
     assert developer["type"] == "accordion" and developer["props"]["open"] is False
     assert "pmsa-preview" in serialized
+    assert "pmsa-upload" in serialized
+    preview = next(c for c in config["components"] if c["props"].get("elem_id") == "pmsa-preview")
+    assert preview["props"]["visible"] is False
     assert any(d.get("api_name") == "classify" for d in config["dependencies"])
     assert "pmsa-card" in launch_options()["css"]

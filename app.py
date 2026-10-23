@@ -47,7 +47,8 @@ APP_CSS = """
     font-size: 11px; color: var(--body-text-color-subdued); }
 .pmsa-note { border-top: 1px solid var(--border-color-primary); padding-top: 12px;
     margin-top: 18px !important; font-size: 13px; }
-#pmsa-preview { border-radius: 14px; }
+#pmsa-upload { border-radius: 16px; overflow: hidden; }
+#pmsa-preview { border: 0; }
 @media(max-width:640px) { .pmsa-card {padding:18px;} .pmsa-axis-labels {font-size:10px;} }
 """
 
@@ -185,7 +186,17 @@ def reset_result():
 def prepare_upload_ui(path):
     import gradio as gr
     preview, *result = preview_upload(path)
-    return preview, *result, gr.update(interactive=preview is not None)
+    valid = preview is not None
+    return (gr.update(value=preview, visible=valid), *result,
+            gr.update(interactive=valid), gr.update(visible=not valid))
+
+
+def clear_upload_ui():
+    """Restore the drop target in the same panel without retaining a verdict."""
+    import gradio as gr
+    return (gr.update(value=None, visible=True), gr.update(value=None, visible=False),
+            EMPTY_RESULT, {}, "Technical details will appear after analysis.",
+            gr.update(interactive=False))
 
 
 def begin_analysis():
@@ -226,16 +237,14 @@ def build_demo():
                 'Upload a photo, run an analysis, and see the result.</p></header>')
         gr.Markdown("**A signal, not proof.** Camera photos can be falsely flagged, and AI images can be missed. "
                     "Use this tool to support a review—not to establish someone’s honesty.")
-        with gr.Row(equal_height=True):
-            with gr.Column(scale=6, min_width=320):
-                inp = gr.File(type="filepath", label="Upload JPEG, PNG, WEBP or HEIC · up to 20 MiB",
-                              file_count="single", height=150)
-            with gr.Column(scale=5, min_width=320):
-                preview = gr.Image(label="Image preview", interactive=False, height=150,
-                                   buttons=[], elem_id="pmsa-preview")
+        with gr.Group(elem_id="pmsa-upload"):
+            inp = gr.File(type="filepath", label="Drop an image here or browse · JPEG, PNG, WEBP, HEIC · up to 20 MiB",
+                          file_count="single", height=180)
+            preview = gr.Image(label="Your image", interactive=False, height=260,
+                               buttons=[], elem_id="pmsa-preview", visible=False)
         with gr.Row():
             button = gr.Button("Analyze image", variant="primary", scale=3, interactive=False)
-            clear = gr.Button("Clear", scale=1, elem_id="pmsa-clear")
+            clear = gr.Button("Clear / choose another", scale=1, elem_id="pmsa-clear")
         label = gr.HTML(EMPTY_RESULT)
         with gr.Accordion("Developer analysis", open=False):
             detail = gr.Markdown("Technical details will appear after analysis.")
@@ -248,14 +257,14 @@ def build_demo():
                         "Google supplies the frozen SigLIP backbone. PMSA supplies the trained detection heads, "
                         "forensic features, calibration and evaluation pipeline. No automatic third-party detector fallback.")
         outputs = [label, metrics, detail]
-        inp.change(prepare_upload_ui, inputs=inp, outputs=[preview, *outputs, button], api_name=False,
+        inp.change(prepare_upload_ui, inputs=inp, outputs=[preview, *outputs, button, inp], api_name=False,
                    queue=False, trigger_mode="always_last")
         controls = [inp, button, clear]
         button.click(begin_analysis, outputs=[*outputs, *controls], api_name=False, queue=False).then(
             classify, inputs=inp, outputs=outputs, api_name="classify", concurrency_limit=1).then(
             finish_analysis, outputs=controls, api_name=False, queue=False)
-        clear.click(lambda: (None, None, EMPTY_RESULT, {}, "Technical details will appear after analysis."),
-                    outputs=[inp, preview, *outputs], api_name=False, queue=False)
+        clear.click(clear_upload_ui, outputs=[inp, preview, *outputs, button],
+                    api_name=False, queue=False)
     return demo
 
 

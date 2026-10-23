@@ -2,10 +2,10 @@
   "schema_version": 1,
   "verified_on": "2026-10-23",
   "space_repo": "Xcalivier/ai-generated-detector",
-  "space_revision": "528a33cf1adec6b691e9fd1202e35bca18ebb3b6",
-  "previous_revision": "c35526905e1e067977d012394ad51fe0bd5ed54d",
-  "local_tests_passed": 222,
-  "changes": ["Image preview and plain-language result card", "Collapsed optional developer analysis", "No public reliability tab", "Original upload retained for inference", "No probability-calibration claim"],
+  "space_revision": "28aa4d31debd726ba9db62b3257c62bfb9d59e1a",
+  "previous_revision": "528a33cf1adec6b691e9fd1202e35bca18ebb3b6",
+  "local_tests_passed": 223,
+  "changes": ["Single panel switches between drop target and image preview", "Plain-language result card", "Collapsed optional developer analysis", "No public reliability tab", "Original upload retained for inference", "No probability-calibration claim"],
   "checks": {
     "released_file_hashes_verified": 32,
     "model_and_calibrator_bytes_unchanged": true,
@@ -14,6 +14,7 @@
     "score_matches_previous_release_with_existing_tolerance": true,
     "developer_panel_collapsed_by_default": true,
     "benchmark_tab_absent": true,
+    "single_upload_preview_panel_checked": true,
     "live_layout_visually_checked": true
   },
   "scope": "UI and synthetic serving regression checks only; no new accuracy, probability-calibration, privacy-certification or production-reliability claim. No personal images used for hosted testing."

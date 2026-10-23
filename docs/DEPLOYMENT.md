@@ -10,6 +10,9 @@ The subsequent UI-only release uses a clear result card, upload preview and
 collapsed Developer analysis panel, without an app benchmark tab. Its 32 remote
 file hashes and synthetic HTTP regression passed; model/calibrator bytes were
 unchanged. See `evidence/ui_release_summary.json` for its revision and scope.
+The upload target and preview occupy one shared panel: a valid upload replaces
+the drop area in place, and Clear restores it. Inference still reads the original
+file rather than the display thumbnail.
 
 Deployment is separate from source publication and model improvement. The Space
 uses the fixed fresh-full fusion seed 0 reference and its unchanged calibrator,
