@@ -105,8 +105,9 @@ def test_result_card_has_three_states_without_fake_probability(score, label):
         per_stream={"siglip": -1., "forensic": score + .5}, combiner_bias=.5))
     assert 'aria-live="polite"' in result
     assert "not a confidence percentage" in result
-    assert "probability calibration has not been validated" in result
     assert "AI probability" not in result
+    assert "Why this result?" in result
+    assert "don’t identify specific flaws or show where they are" in result
     assert metrics["Score (not a probability)"] == score
     assert "Contributions plus bias equal the score" in detail
     assert "not causal" in detail
@@ -115,25 +116,41 @@ def test_result_card_has_three_states_without_fake_probability(score, label):
         assert metrics["Binary threshold exceeded"] is True
 
 
+def test_plain_reason_reports_actual_signal_directions():
+    from app import plain_explanation
+    from pmsa.inference import Verdict
+
+    verdict = Verdict("AI-generated signal", True, 2., 0., 2.,
+                      per_stream={"siglip": -1., "forensic": 3.})
+    reason = plain_explanation(verdict)
+    assert reason.startswith("The check of color, texture, and fine pixel patterns raised the score.")
+    assert "how the image looks as a whole lowered the score" in reason
+    verdict.per_stream = {"siglip": 0., "forensic": -1.}
+    assert plain_explanation(verdict) == "The check of color, texture, and fine pixel patterns lowered the score."
+    verdict.per_stream = {"siglip": 0., "unrecognized": 100.}
+    assert "no separate breakdown" in plain_explanation(verdict)
+
+
 def test_html_result_escapes_untrusted_text():
     from app import render_verdict
     from pmsa.inference import Verdict
     result, _, detail = render_verdict(Verdict("No AI signal detected", False, -1., 0., -1.,
         explanation='<img src=x onerror="alert(1)">',
         provenance={"note": "<script>bad()</script>"}))
-    assert "<img src=x" not in result and "&lt;img" in result
+    assert "<img src=x" not in result
     assert "<script>" not in detail
 
 
 def test_preview_preserves_original_and_does_not_load_model(tmp_path, monkeypatch):
     import app
-    path = tmp_path / "preview.png"
+    path = tmp_path / "<preview>.png"
     Image.new("RGB", (1400, 1000), "blue").save(path)
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
     monkeypatch.setattr(app, "_load", lambda: pytest.fail("Preview must not load detector"))
-    preview, result, metrics, detail = app.preview_upload(str(path))
+    preview, result, metrics, detail, hint = app.preview_upload(str(path))
     assert preview.width <= 900 and preview.height <= 600
-    assert result == app.EMPTY_RESULT and metrics == {}
+    assert result == app.READY_RESULT and metrics == {}
+    assert "1,400 × 1,000 px" in hint and "&lt;preview&gt;.png" in hint
     assert hashlib.sha256(path.read_bytes()).hexdigest() == digest
     assert app.preview_upload(None)[0] is None
 
@@ -142,37 +159,44 @@ def test_bad_preview_clears_previous_diagnostics(tmp_path):
     from app import preview_upload
     path = tmp_path / "invalid.png"
     path.write_text("not an image")
-    preview, result, metrics, detail = preview_upload(str(path))
+    preview, result, metrics, detail, hint = preview_upload(str(path))
     assert preview is None and metrics == {}
     assert "Cannot preview" in result
     assert "No model analysis" in detail
 
 
 def test_analysis_locks_upload_until_result_or_error():
-    from app import begin_analysis, finish_analysis
+    from app import begin_analysis, fail_analysis, finish_analysis, ANALYZING_RESULT, FAILED_RESULT
     started = begin_analysis()
     assert len(started) == 6
+    assert started[0] == ANALYZING_RESULT
     assert all(update["interactive"] is False for update in started[3:])
     assert all(update["interactive"] is True for update in finish_analysis())
+    failed = fail_analysis()
+    assert failed[:2] == (FAILED_RESULT, {})
+    assert all(update["interactive"] is True for update in failed[3:])
 
 
 def test_upload_only_enables_analysis_after_valid_preview(tmp_path):
     from app import prepare_upload_ui
     assert prepare_upload_ui(None)[-2]["interactive"] is False
+    assert prepare_upload_ui(None)[-1]["interactive"] is False
     path = tmp_path / "valid.png"
     Image.new("RGB", (4, 5)).save(path)
     result = prepare_upload_ui(str(path))
     assert result[-2]["interactive"] is True
-    assert result[0]["visible"] is True and result[-1]["visible"] is False
+    assert result[0]["visible"] is True and result[-3]["visible"] is False
+    assert result[-1]["interactive"] is True
 
 
 def test_single_upload_panel_restores_drop_target_on_clear():
     from app import clear_upload_ui, EMPTY_RESULT
-    file_update, preview_update, result, diagnostics, detail, button_update = clear_upload_ui()
+    file_update, preview_update, result, diagnostics, detail, hint, button_update, clear_update = clear_upload_ui()
     assert file_update["visible"] is True and file_update["value"] is None
     assert preview_update["visible"] is False and preview_update["value"] is None
     assert result == EMPTY_RESULT and diagnostics == {}
     assert button_update["interactive"] is False
+    assert clear_update["interactive"] is False and "20 MiB" in hint
 
 
 def test_demo_exposes_plain_result_and_developer_diagnostics(monkeypatch):
@@ -189,7 +213,17 @@ def test_demo_exposes_plain_result_and_developer_diagnostics(monkeypatch):
     assert developer["type"] == "accordion" and developer["props"]["open"] is False
     assert "pmsa-preview" in serialized
     assert "pmsa-upload" in serialized
+    assert "pmsa-workspace" in serialized and "Analysis result" in serialized
+    workspace = next(c for c in config["components"] if c["props"].get("elem_id") == "pmsa-workspace")
+    assert workspace["props"]["equal_height"] is False
+    privacy = next(c for c in config["components"] if c["props"].get("elem_id") == "pmsa-privacy")
+    top_level = [child["id"] for child in config["layout"]["children"]]
+    assert top_level.index(workspace["id"]) < top_level.index(developer["id"]) < top_level.index(privacy["id"])
+    assert "AI Image Detector" in serialized
     preview = next(c for c in config["components"] if c["props"].get("elem_id") == "pmsa-preview")
     assert preview["props"]["visible"] is False
     assert any(d.get("api_name") == "classify" for d in config["dependencies"])
+    analysis = next(d for d in config["dependencies"] if d.get("api_name") == "classify")
+    assert any(d["trigger_after"] == analysis["id"] and d["trigger_only_on_failure"]
+               for d in config["dependencies"])
     assert "pmsa-card" in launch_options()["css"]
