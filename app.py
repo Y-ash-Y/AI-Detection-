@@ -14,76 +14,123 @@ from pmsa.utils import get_device
 _detector = None
 _load_lock = Lock()
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+EMPTY_DETAIL = "Technical details will appear after analysis."
 
 APP_CSS = """
-.gradio-container { max-width: 1240px !important; }
-.pmsa-hero { padding: 24px 0 20px; }
-.pmsa-eyebrow { font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
-    color: var(--body-text-color-subdued); font-weight: 700; }
-.pmsa-hero h1 { font-size: clamp(28px,4vw,42px); letter-spacing: -.04em;
-    margin: 7px 0 8px; line-height: 1.12; }
-.pmsa-hero p { max-width: 720px; color: var(--body-text-color-subdued); }
-.pmsa-card { border: 1px solid var(--border-color-primary); border-radius: 18px;
-    padding: 24px; background: var(--block-background-fill); color: var(--body-text-color); }
-.pmsa-card h2 { font-size: 26px; margin: 12px 0 10px; line-height: 1.2; }
-.pmsa-card p { line-height: 1.6; margin: 8px 0; }
-.pmsa-badge { display: inline-block; border-radius: 99px; padding: 6px 11px;
-    font-size: 12px; font-weight: 700; background: var(--background-fill-secondary); }
-.pmsa-ai { border-top: 5px solid #e07840; }
-.pmsa-no { border-top: 5px solid #23a18b; }
-.pmsa-uncertain { border-top: 5px solid #d4a52d; }
-.pmsa-muted { color: var(--body-text-color-subdued); font-size: 13px; }
-.pmsa-readout { display: flex; flex-wrap: wrap; gap: 12px 28px; margin: 18px 0; }
-.pmsa-readout strong { display: block; font-size: 23px; font-variant-numeric: tabular-nums; }
-.pmsa-readout span { font-size: 12px; color: var(--body-text-color-subdued); }
-.pmsa-axis { position: relative; height: 12px; border-radius: 20px; margin: 30px 8px 12px;
-    background: linear-gradient(90deg, #23a18b44, #d4a52d55 50%, #e0784044); }
-.pmsa-threshold { position: absolute; left: 50%; height: 28px; top: -8px;
-    width: 2px; background: var(--body-text-color); }
-.pmsa-point { position: absolute; width: 18px; height: 18px; border-radius: 50%;
-    top: -3px; transform: translateX(-50%); background: var(--body-text-color);
-    border: 3px solid var(--block-background-fill); box-shadow: 0 0 0 1px var(--body-text-color); }
-.pmsa-axis-labels { display: flex; justify-content: space-between; gap: 10px;
-    font-size: 11px; color: var(--body-text-color-subdued); }
-.pmsa-note { border-top: 1px solid var(--border-color-primary); padding-top: 12px;
-    margin-top: 18px !important; font-size: 13px; }
-#pmsa-upload { border-radius: 16px; overflow: hidden; }
-#pmsa-preview { border: 0; }
-@media(max-width:640px) { .pmsa-card {padding:18px;} .pmsa-axis-labels {font-size:10px;} }
+.gradio-container {
+    max-width: 1140px !important; margin-inline: auto !important;
+    padding: 0 clamp(16px, 3vw, 36px) !important;
+}
+#pmsa-header, #pmsa-image-heading, #pmsa-result, #pmsa-input-hint {
+    padding: 0 !important; min-height: 0; background: transparent; border: 0;
+}
+.pmsa-brand {
+    display: flex; align-items: center; gap: 10px; padding: 20px 0;
+    border-bottom: 1px solid var(--border-color-primary);
+}
+.pmsa-mark {
+    display: grid; place-items: center; width: 34px; height: 34px;
+    border-radius: 10px; background: var(--button-primary-background-fill);
+    color: var(--button-primary-text-color);
+}
+.pmsa-brand strong { font-size: 17px; letter-spacing: -.025em; }
+.pmsa-brand span:last-child { margin-left: auto; }
+.pmsa-intro { padding: 26px 0 10px; }
+.pmsa-intro h1 { font-size: clamp(28px, 4vw, 44px); line-height: 1.12; letter-spacing: -.045em; margin: 0 0 8px; }
+.pmsa-intro p, .pmsa-card p, .pmsa-section h2 { margin: 0; }
+.pmsa-intro p, .pmsa-muted, .pmsa-card p, .pmsa-readout dt { color: var(--body-text-color-subdued); }
+.pmsa-muted { font-size: 13px; }
+#pmsa-workspace { gap: 18px; align-items: stretch; }
+#pmsa-workspace > .column { min-width: 0 !important; }
+.pmsa-panel {
+    border: 1px solid var(--border-color-primary); border-radius: 18px;
+    background: var(--block-background-fill); padding: clamp(16px, 2.4vw, 24px);
+}
+.pmsa-section { display: flex; gap: 10px; align-items: center; }
+.pmsa-step {
+    display: grid; place-items: center; width: 27px; height: 27px; border-radius: 8px;
+    background: var(--background-fill-secondary); color: var(--body-text-color);
+    font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums;
+}
+.pmsa-section h2 { font-size: 16px; letter-spacing: -.015em; }
+#pmsa-upload { border-radius: 12px; overflow: hidden; border: 0; }
+#pmsa-upload .upload-container { border-color: var(--border-color-primary); }
+#pmsa-preview { border: 0; border-radius: 12px; overflow: hidden; background: var(--background-fill-secondary); }
+#pmsa-preview img { object-fit: contain; }
+#pmsa-analyze, #pmsa-clear { min-height: 44px; }
+#pmsa-input-hint { overflow-wrap: anywhere; }
+.pmsa-card { display: flex; flex-direction: column; gap: 13px; min-height: 204px;
+    padding: 18px; border-radius: 13px; background: var(--background-fill-secondary);
+    border: 1px solid var(--border-color-primary); color: var(--body-text-color); }
+.pmsa-card h3 { font-size: clamp(20px, 2.3vw, 26px); line-height: 1.15;
+    letter-spacing: -.03em; margin: 0; }
+.pmsa-card p { font-size: 14px; line-height: 1.52; }
+.pmsa-badge { display: inline-flex; align-items: center; align-self: flex-start; gap: 7px;
+    border-radius: 99px; padding: 4px 9px; border: 1px solid var(--border-color-primary);
+    font-size: 12px; font-weight: 650; background: var(--block-background-fill); }
+.pmsa-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--body-text-color-subdued); }
+.pmsa-ai .pmsa-dot, .pmsa-error .pmsa-dot { background: #e17752; }
+.pmsa-no .pmsa-dot, .pmsa-ready .pmsa-dot { background: #24a88e; }
+.pmsa-uncertain .pmsa-dot { background: #d69a2c; }
+.pmsa-busy .pmsa-dot { width: 10px; height: 10px; background: transparent;
+    border: 2px solid var(--border-color-primary); border-top-color: var(--body-text-color);
+    animation: pmsa-spin .8s linear infinite; }
+@keyframes pmsa-spin { to { transform: rotate(360deg); } }
+@media(prefers-reduced-motion:reduce) { .pmsa-busy .pmsa-dot { animation: none; } }
+.pmsa-readout { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin: 0; }
+.pmsa-readout div { background: var(--block-background-fill); border-radius: 9px; padding: 8px 10px; }
+.pmsa-readout dt { font-size: 12px; }
+.pmsa-readout dd { margin: 2px 0 0; font-size: 19px; font-weight: 650;
+    font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.pmsa-card .pmsa-disclaimer { font-size: 12px; }
+#pmsa-notice { padding: 4px 0; }
+@media(max-width:760px) {
+    #pmsa-workspace { flex-direction: column; gap: 12px; }
+    .pmsa-intro { padding-top: 18px; }
+    .pmsa-panel { width: 100%; }
+}
 """
 
-EMPTY_RESULT = """<section class="pmsa-card" aria-live="polite">
-<span class="pmsa-badge">READY WHEN YOU ARE</span><h2>What does your image reveal?</h2>
-<p>Upload a still image and choose <strong>Analyze image</strong>.</p>
-<p class="pmsa-muted">Your result will appear here. Optional technical details are in Developer analysis below.
-The first analysis may take longer while the model loads.</p></section>"""
+HEADER = """<header>
+<div class="pmsa-brand"><span class="pmsa-mark" aria-hidden="true">
+<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+<path d="M3 8V4h4m10 0h4v4m0 8v4h-4m-10 0H3v-4M5 12h4l2-4 3 8 2-4h3"/>
+</svg></span><strong>PMSA</strong><span class="pmsa-muted">Image forensics</span></div>
+<div class="pmsa-intro"><h1>AI image analysis</h1>
+<p>Check a still image for signs of AI generation.</p></div></header>"""
+
+
+def state_card(state, badge, title, message):
+    return (f'<section class="pmsa-card pmsa-{state}" aria-live="polite">'
+            f'<span class="pmsa-badge"><span class="pmsa-dot" aria-hidden="true"></span>{escape(badge)}</span>'
+            f'<h3>{escape(title)}</h3><p>{escape(message)}</p></section>')
+
+
+EMPTY_RESULT = state_card("waiting", "Awaiting image", "No analysis yet",
+                          "Add an image on the left or above to get started.")
+READY_RESULT = state_card("ready", "Image ready", "Ready to analyze",
+                          "Select Analyze image to check the original file.")
+ANALYZING_RESULT = state_card("busy", "Analyzing", "Checking the image",
+                              "The first analysis may take longer while the model loads.")
+FAILED_RESULT = state_card("error", "Analysis failed", "Couldn’t analyze this image",
+                           "Try again, or choose a different image if the problem persists.")
+INPUT_HINT = '<p class="pmsa-muted">JPEG, PNG, WebP or HEIC · Up to 20 MiB</p>'
 
 
 def result_card(verdict):
     """Raw score visualization, never a fabricated AI probability or confidence."""
     kind = {"AI-generated signal": "ai", "No AI signal detected": "no"}.get(verdict.label, "uncertain")
     title = {"ai": "AI-generation signal detected", "no": "No AI signal detected",
-             "uncertain": "Inconclusive — review recommended"}[kind]
-    advice = {"ai": "Treat this as a reason to check the image’s source, not a final accusation.",
-              "no": "This is not proof the image is camera-original. Some generated images evade detection.",
-              "uncertain": "The score is close to the decision boundary. Check the original file and its source."}[kind]
-    span = max(1., abs(verdict.margin) * 1.25)
-    position = 50 + 50 * verdict.margin / span
-    low, high = verdict.tau - span, verdict.tau + span
+             "uncertain": "Inconclusive"}[kind]
+    description = {"ai": "The score is above the decision threshold. Check the source before drawing a conclusion.",
+                   "no": "The score is below the threshold. This does not establish camera origin.",
+                   "uncertain": "The score is close to the threshold. Check the original image and its source."}[kind]
     return f"""<section class="pmsa-card pmsa-{kind}" aria-live="polite">
-<span class="pmsa-badge">ANALYSIS COMPLETE</span>
-<h2>{escape(title)}</h2><p>{escape(verdict.explanation)}</p>
-<div class="pmsa-readout"><div><strong>{verdict.score:+.3f}</strong><span>Detection score</span></div>
-<div><strong>{verdict.tau:+.3f}</strong><span>Decision threshold</span></div>
-<div><strong>{verdict.margin:+.3f}</strong><span>Distance from threshold</span></div></div>
-<div role="img" aria-label="Score {verdict.score:.4f}, threshold {verdict.tau:.4f}; raw score units, not probability">
-<div class="pmsa-axis"><span class="pmsa-threshold"></span>
-<span class="pmsa-point" style="left:{position:.3f}%"></span></div>
-<div class="pmsa-axis-labels"><span>{low:+.2f} · Less AI-like</span>
-<span>Threshold {verdict.tau:+.2f}</span><span>More AI-like · {high:+.2f}</span></div></div>
-<p class="pmsa-muted">Raw model-score scale; axis adapts to this result. It is not a confidence percentage.</p>
-<p class="pmsa-note"><strong>What to do next:</strong> {escape(advice)}</p>
-<p class="pmsa-muted">Confidence percentage: unavailable — probability calibration has not been validated.</p>
+<span class="pmsa-badge"><span class="pmsa-dot" aria-hidden="true"></span>Analysis complete</span>
+<h3>{title}</h3><p>{description}</p>
+<dl class="pmsa-readout"><div><dt>Detector score</dt><dd>{verdict.score:+.3f}</dd></div>
+<div><dt>Decision threshold</dt><dd>{verdict.tau:+.3f}</dd></div></dl>
+<p class="pmsa-disclaimer">This is a model score, not a confidence percentage.</p>
 </section>"""
 
 

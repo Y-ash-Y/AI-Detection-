@@ -2,8 +2,10 @@
 /data/
 /feature_cache/*
 !/feature_cache/.gitkeep
+!/feature_cache/README.md
 /outputs/*
 !/outputs/.gitkeep
+!/outputs/README.md
 *.jpg
 *.jpeg
 *.png
