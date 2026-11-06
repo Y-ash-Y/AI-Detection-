@@ -41,7 +41,7 @@ def _assign_tie_ranks(scores: np.ndarray, ranks: np.ndarray) -> None:
 
 
 def tpr_at_fpr(scores: np.ndarray, labels: np.ndarray, fpr_target: float) -> float:
-    """TPR (power) at a target FPR, threshold set on the real scores in this set."""
+    """TPR at the lowest real-score cutoff allowed by the empirical FPR budget."""
     scores, labels = _binary_inputs(scores, labels)
     if not np.isfinite(fpr_target) or not 0 < fpr_target < 1:
         raise ValueError("fpr_target must be in (0,1)")
@@ -49,7 +49,15 @@ def tpr_at_fpr(scores: np.ndarray, labels: np.ndarray, fpr_target: float) -> flo
     fake = scores[labels == 1]
     if real.size == 0 or fake.size == 0:
         return float("nan")
-    tau = np.quantile(real, 1.0 - fpr_target, method="higher")
+    # Count the allowed exceedances using the same comparison as reported FPR.
+    # Compare rates directly near integer boundaries to avoid rounding artifacts.
+    allowed = min(real.size - 1, int(real.size * fpr_target))
+    if allowed / real.size > fpr_target:
+        allowed -= 1
+    elif (allowed + 1) / real.size <= fpr_target:
+        allowed += 1
+    ix = real.size - allowed - 1
+    tau = np.partition(real, ix)[ix]
     return float(np.mean(fake > tau))
 
 

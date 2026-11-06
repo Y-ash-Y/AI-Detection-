@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Phase 3: train the PMSA v2 fusion detector (CLIP + DINOv2 + NPR), LOGO protocol.
+"""Train the SigLIP + forensic fusion detector, leave-one-generator-out protocol.
 
 Loads the aligned per-backbone caches, trains the fusion net on the laptop (MPS),
 and reports metrics + per-stream decomposition on the held-out generator.

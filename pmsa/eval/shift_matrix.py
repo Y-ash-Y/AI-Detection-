@@ -11,12 +11,9 @@ The 2x2 of what can shift, relative to the calibration domain:
 Hypotheses (PMSA v2 thesis):
   * tau depends only on the real distribution. So under (B) the FPR guarantee
     should HOLD with the original tau (real domain unchanged); only power drops.
-  * Under (C)/(D) the original tau breaks the FPR guarantee, because the real
-    distribution moved. But recalibrating tau on unlabeled real images from the
-    NEW domain — no fakes needed — should RESTORE FPR <= alpha.
-
-This module runs that matrix and produces the table that (as of writing) does
-not exist in the literature.
+  * Under (C)/(D) the original threshold need not transfer. Recalibration uses
+    known real images from the new domain. Finite-sample marginal control
+    requires exchangeability, not just an observed rate below target.
 """
 from __future__ import annotations
 
@@ -35,6 +32,7 @@ class ShiftCell:
     real_domain: str
     fake_generator: str
     tpr: float                # power on this cell's fakes
+    tpr_recalibrated: float   # power on the same fakes after recalibration
     fpr_original_tau: float   # realized FPR using the calibration-domain tau
     fpr_recalibrated: float   # realized FPR after real-only recal on this domain
     tau_original: float
@@ -42,6 +40,8 @@ class ShiftCell:
     recal_certified: bool
     n_real: int
     n_fake: int
+    alpha: float
+    observed_recal_fpr_at_or_below_target: bool
 
 
 def evaluate_cell(
@@ -66,45 +66,61 @@ def evaluate_cell(
     real_scores = np.asarray(real_scores).ravel()
     fake_scores = np.asarray(fake_scores).ravel()
 
+    if (not real_scores.size or not fake_scores.size
+            or not np.isfinite(real_scores).all() or not np.isfinite(fake_scores).all()):
+        raise ValueError("Shift evaluation requires finite, nonempty real and fake test scores")
     recal = Calibrator.fit(recal_real_scores, alpha, method=method,
                            real_domain=real_domain)
+    if not np.isfinite([base_calibrator.tau, recal.tau]).all():
+        raise ValueError(f"Finite thresholds required; collect more real calibration groups for {real_domain}")
+    recal_fpr = recal.fpr_on(real_scores)
 
     return ShiftCell(
         name=cell_name,
         real_domain=real_domain,
         fake_generator=fake_generator,
         tpr=base_calibrator.tpr_on(fake_scores),
+        tpr_recalibrated=recal.tpr_on(fake_scores),
         fpr_original_tau=base_calibrator.fpr_on(real_scores),
-        fpr_recalibrated=recal.fpr_on(real_scores),
+        fpr_recalibrated=recal_fpr,
         tau_original=base_calibrator.tau,
         tau_recalibrated=recal.tau,
         recal_certified=recal.certified,
         n_real=int(real_scores.size),
         n_fake=int(fake_scores.size),
+        alpha=alpha,
+        observed_recal_fpr_at_or_below_target=recal_fpr <= alpha,
     )
 
 
 def run_matrix(cells: list[ShiftCell]) -> dict:
     """Bundle cells into a serializable report with the headline takeaways."""
+    if not cells:
+        raise ValueError("No real-domain/generator cells to report")
     return {
+        "schema_version": 2,
         "cells": [asdict(c) for c in cells],
         "summary": _summarize(cells),
+        "note": "Observed target attainment is descriptive, not a population FPR guarantee.",
     }
 
 
 def _summarize(cells: list[ShiftCell]) -> dict:
-    def avg(key):
-        vals = [getattr(c, key) for c in cells if not np.isnan(getattr(c, key))]
-        return float(np.mean(vals)) if vals else float("nan")
-
+    # Generator cells in the same domain share their real test rows.
+    real_domains = {c.real_domain: c for c in cells}.values()
     return {
-        "mean_fpr_original_tau": avg("fpr_original_tau"),
-        "mean_fpr_recalibrated": avg("fpr_recalibrated"),
-        "mean_tpr": avg("tpr"),
-        "guarantee_restored": avg("fpr_recalibrated") <= max(c.fpr_original_tau
-                                                             for c in cells),
+        "mean_fpr_original_tau": float(np.mean([c.fpr_original_tau for c in real_domains])),
+        "mean_fpr_recalibrated": float(np.mean([c.fpr_recalibrated for c in real_domains])),
+        "mean_tpr": float(np.mean([c.tpr for c in cells])),
+        "mean_tpr_recalibrated": float(np.mean([c.tpr_recalibrated for c in cells])),
+        "all_domains_observed_recal_fpr_at_or_below_target": all(
+            c.observed_recal_fpr_at_or_below_target for c in cells),
     }
 
 
 def save_report(report: dict, path: str | Path) -> None:
-    Path(path).write_text(json.dumps(report, indent=2))
+    payload = json.dumps(report, indent=2, allow_nan=False)
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("x") as f:
+        f.write(payload + "\n")

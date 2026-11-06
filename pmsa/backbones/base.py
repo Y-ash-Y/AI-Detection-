@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 _REGISTRY: dict[str, type["Backbone"]] = {}
+RETIRED_BACKBONES = frozenset({"clip_l14", "dino_b14", "npr"})
 
 
 def register(name: str):
@@ -17,6 +18,9 @@ def register(name: str):
 
 
 def build_backbone(name: str, device: str = "cpu", **kw) -> "Backbone":
+    if name in RETIRED_BACKBONES:
+        raise KeyError(f"Backbone '{name}' is retired. Use 'siglip' or 'forensic'; "
+                       "historical runs require their archived source revision.")
     if name not in _REGISTRY:
         raise KeyError(f"unknown backbone '{name}'. registered: {list(_REGISTRY)}")
     return _REGISTRY[name](device=device, **kw)

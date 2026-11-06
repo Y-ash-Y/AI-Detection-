@@ -77,6 +77,18 @@ def test_staging_requires_private_output_directory(tmp_path):
         stage.prepare(repo,source,repo/"public-release")
 
 
+def test_serving_allowlist_contains_only_current_backbone_implementations():
+    files = set(stager().SERVING_FILES)
+    implementations = {name for name in files if name.startswith("pmsa/backbones/")}
+    assert implementations == {
+        "pmsa/backbones/__init__.py", "pmsa/backbones/base.py",
+        "pmsa/backbones/hub_revision.py", "pmsa/backbones/siglip_encoder.py",
+        "pmsa/backbones/forensic.py",
+    }
+    assert "pmsa/pretrained.py" not in files
+    assert all((ROOT / name).is_file() for name in files)
+
+
 def test_space_card_configuration():
     import yaml
     text=(ROOT/"deployment/space/README.md").read_text()

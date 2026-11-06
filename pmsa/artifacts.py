@@ -73,12 +73,15 @@ def verify_bundle(directory, checkpoint=None, calibrator=None):
 def validate_stream_metadata(streams):
     """Require reproducible preprocessing, not merely a cache-schema label."""
     from .preprocessing import ImagePolicy
+    from .backbones.base import RETIRED_BACKBONES
     if not isinstance(streams, dict) or not streams:
         raise ValueError("Bundle needs at least one stream")
     policy = None
     for name, metadata in streams.items():
         if not isinstance(name, str) or not name or not isinstance(metadata, dict):
             raise ValueError("Invalid stream metadata")
+        if name in RETIRED_BACKBONES:
+            raise ValueError(f"Retired backbone '{name}'; use its archived source revision")
         if metadata.get("schema_version") != 1:
             raise ValueError(f"Missing extraction metadata for {name}")
         image_policy = metadata.get("image_policy")
@@ -97,7 +100,7 @@ def validate_stream_metadata(streams):
                 or any(not isinstance(k, str) or not k or not isinstance(v, str) or not v
                        for k, v in packages.items())):
             raise ValueError(f"Incomplete extraction configuration for {name}")
-        if name in ("siglip", "clip_l14", "dino_b14"):
+        if name == "siglip":
             kw = metadata["backbone_kwargs"]
             if (not isinstance(kw.get("weights"), str) or not kw["weights"]
                     or not isinstance(kw.get("revision"), str) or not kw["revision"]

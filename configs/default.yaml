@@ -1,5 +1,4 @@
 # Current SigLIP + forensic configuration.
-# For historical CLIP/DINO/NPR extraction, use configs/legacy_v2.yaml.
 # Experiment configs in configs/experiments/ override these keys shallowly.
 
 seed: 0
@@ -11,18 +10,6 @@ feature:
   batch_size: 64
   num_workers: 4
   backbones:
-    - name: clip_l14
-      weights: openai/clip-vit-large-patch14
-      image_size: 224
-      enabled: false
-    - name: dino_b14
-      weights: facebook/dinov2-base
-      image_size: 224
-      enabled: false
-    - name: npr
-      weights: ""
-      image_size: 256
-      enabled: false
     # Frozen pretrained semantic features; the detector head is trained here.
     - name: siglip
       weights: google/siglip-base-patch16-224
@@ -41,7 +28,7 @@ calibration:
   seed: 0
 
 train:
-  model: fusion        # linear_probe (UnivFD baseline) | fusion (PMSA v2)
+  model: fusion        # linear_probe (SigLIP baseline) | fusion
   epochs: 50
   lr: 0.001
   weight_decay: 0.0001

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-"""Phase 2: the honest baseline. UnivFD linear probe on frozen CLIP, LOGO protocol.
+"""Linear probe on frozen SigLIP features, leave-one-generator-out protocol.
 
-This number is the floor. Reports AUC / EER / TPR@FPR with bootstrap CIs for each
-held-out generator. Runs in seconds on cached features.
+Reports AUC / EER / TPR@FPR with bootstrap CIs for each held-out generator.
+This is a SigLIP baseline, not a reproduction of the CLIP-based UnivFD model.
 
     python scripts/02_train_baseline.py --tag train --held-out sdxl
 """
@@ -26,7 +26,7 @@ from pmsa.data.splits import logo_split, independent_indices
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default="configs/default.yaml")
-    ap.add_argument("--backbone", default="clip_l14")
+    ap.add_argument("--backbone", choices=["siglip", "forensic"], default="siglip")
     ap.add_argument("--tag", default="train")
     ap.add_argument("--held-out", default=None,
                     help="generator to leave out; if omitted, loop over all")

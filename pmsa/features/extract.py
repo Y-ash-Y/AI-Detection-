@@ -62,7 +62,7 @@ def extract_backbone(
     kw = {"image_size": image_size}
     if weights:
         kw["weights"] = weights
-    if backbone_name in ("siglip", "clip_l14", "dino_b14"):
+    if backbone_name == "siglip":
         kw.update(revision=revision, use_fast=use_fast)
     bb = build_backbone(backbone_name, device=device, **kw)
     from importlib.metadata import version

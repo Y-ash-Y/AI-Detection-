@@ -1,11 +1,10 @@
-"""UnivFD baseline (Ojha et al. 2023): a linear probe on frozen CLIP features.
+"""Standardized logistic-regression baseline on frozen features (SigLIP by default).
 
-This is the floor and the reference point. Every PMSA v2 result must beat this or
-the added complexity isn't earning its keep. v1's fatal flaw was having no
-baseline at all; here it is step one.
+This reusable head also supports a forensic-only ablation. Using SigLIP features
+does not constitute a reproduction of the CLIP-based UnivFD baseline.
 
-The probe's decision function (log-odds) is the score; higher = more fake — the
-same NP log-likelihood-ratio surrogate the rest of the pipeline expects.
+The decision function is a discriminative score; higher = more generated-like.
+It is not a validated likelihood ratio or a calibrated deployment probability.
 """
 from __future__ import annotations
 

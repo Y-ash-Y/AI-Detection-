@@ -51,14 +51,13 @@ def test_revision_rejects_commit_mismatch(tmp_path, monkeypatch):
         resolve_hub_revision("fixture/model", "a" * 40)
 
 
-@pytest.mark.parametrize("encoder", ["siglip", "clip_l14", "dino_b14"])
-def test_vision_config_without_private_commit_still_pins_both_loads(tmp_path, monkeypatch, encoder):
+def test_vision_config_without_private_commit_still_pins_both_loads(tmp_path, monkeypatch):
     pytest.importorskip("torch")
     hub_calls = fake_hub(monkeypatch, snapshot(tmp_path))
     calls = []
 
     class Model:
-        config = SimpleNamespace(hidden_size=768)  # No _commit_hash.
+        config = SimpleNamespace(hidden_size=768, image_size=224)  # No _commit_hash.
 
         def to(self, device):
             return self
@@ -70,8 +69,6 @@ def test_vision_config_without_private_commit_still_pins_both_loads(tmp_path, mo
             return []
 
     model = Model()
-    model.vision_model = Model()
-    model.visual_projection = Model()
 
     def load_model(weights, **kwargs):
         calls.append(("model", weights, kwargs))
@@ -79,16 +76,19 @@ def test_vision_config_without_private_commit_still_pins_both_loads(tmp_path, mo
 
     def load_processor(weights, **kwargs):
         calls.append(("processor", weights, kwargs))
-        return SimpleNamespace()
+        return SimpleNamespace(size={"width": 224, "height": 224})
 
     model_api = SimpleNamespace(from_pretrained=load_model)
     processor_api = SimpleNamespace(from_pretrained=load_processor)
     monkeypatch.setitem(sys.modules, "transformers", SimpleNamespace(
-        SiglipVisionModel=model_api, CLIPModel=model_api, AutoModel=model_api,
-        AutoImageProcessor=processor_api, CLIPImageProcessor=processor_api))
+        SiglipVisionModel=model_api, AutoImageProcessor=processor_api))
     from pmsa.backbones import build_backbone
-    bb = build_backbone(encoder, weights="fixture/model")
+    bb = build_backbone("siglip", weights="fixture/model")
     assert hub_calls[0]["revision"] == "main"
-    assert calls == [("model", "fixture/model", {"revision": COMMIT}),
-                     ("processor", "fixture/model", {"revision": COMMIT, "use_fast": False})]
+    assert calls == [("processor", "fixture/model", {"revision": COMMIT, "use_fast": False}),
+                     ("model", "fixture/model", {"revision": COMMIT})]
     assert bb.load_config == {"weights": "fixture/model", "revision": COMMIT, "use_fast": False}
+    calls.clear()
+    with pytest.raises(ValueError, match="does not match the pinned processor size"):
+        build_backbone("siglip", weights="fixture/model", image_size=384)
+    assert [name for name, *_ in calls] == ["processor"]  # No weight load on mismatch.

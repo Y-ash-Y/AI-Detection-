@@ -9,19 +9,13 @@ shift—not universal proof that an image is real or AI-generated.
 [CI](https://github.com/Y-ash-Y/AI-Detection-/actions) ·
 [Architecture](#ownership-and-architecture)
 
-The minimal hosted release was verified on 2026-10-23 with a synthetic HTTP upload,
-invalid-file rejection and released-file integrity checks. It serves the fixed
-fresh-full fusion seed 0 reference, not an experimental adaptation candidate.
-The latest interface combines upload and preview in one panel, with optional
-developer diagnostics. The UI release did not change the trained model.
-
 ## Ownership and architecture
 
 Google's pretrained SigLIP supplies frozen semantic features; it was not pretrained
 in this project. The project implements dataset assembly, a 66-dimensional
 spectral/color/residual stream, trained fusion heads, score decomposition,
-calibration and evaluation. An optional third-party classifier adapter is a
-credited comparison baseline, never an automatic application fallback.
+calibration and evaluation. The application does not fall back to an external
+detector.
 
 The inference path is:
 
@@ -44,11 +38,10 @@ generative AI; edited photographs may have mixed origins.
 
 ## Evidence status
 
-Fresh metadata-bearing extraction, three-seed head evaluation and sampled
-serving-parity checks have completed. Chameleon was previously viewed, so this is
-reproducible benchmark evaluation, not a newly blinded holdout or a production
-release. Category-matched data collection has restarted; no new training or
-confirmation result is claimed from that preparation.
+The project closes with the original frozen SigLIP + forensic fusion release.
+Three-seed evaluation and sampled serving-parity checks are complete. Chameleon
+was previously inspected, so this is a reproducible benchmark evaluation, not
+a newly blinded holdout or evidence of production reliability.
 
 | Fresh full run: Chameleon, 26,017 representatives | Mean AUC | FPR at frozen threshold | TPR at frozen threshold |
 |---|---:|---:|---:|
@@ -66,6 +59,13 @@ on this benchmark. These rates do not establish performance on current GPT image
 Full per-image evidence and personal collections are not included in this repository.
 The hosted release was a separate explicit deployment; no model was retrained or
 selected automatically from these results.
+
+### Why the deployed model stayed frozen
+
+Later development trials tested local SigLIP patches, modern training data and
+real-only threshold adjustments. None demonstrated a reliable improvement in
+modern-image detection without increasing false alarms or losing detection power.
+
 
 ### Earlier results — separate experiments
 
@@ -180,17 +180,30 @@ Use its recorded versions; the isolated fresh-full reference is
 silently changing features. Installing source/running fixtures is separate from
 running a particular trained bundle.
 
-The default app expects a v3 bundle. Local retired v2 artifacts may be archived;
-remaining legacy checkpoints require explicit legacy configuration because pairing
-and preprocessing cannot be inferred reliably from filenames. No model training
-or live redeployment is automatically triggered.
+The default app expects a v3 bundle. The active extractors are **SigLIP + forensic**;
+retired encoder implementations and the optional third-party detector adapter
+are no longer shipped. Historical architectures require their archived source
+revision, not the current package. Pairing and preprocessing cannot be inferred
+reliably from checkpoint filenames. No model training or live redeployment is
+automatically triggered.
 
-Default extraction now selects **SigLIP + forensic**. CLIP, DINOv2 and NPR source
-modules remain available for historical comparisons without downloading their
-weights on import. Use `--config configs/legacy_v2.yaml` to select the old streams
-explicitly; old notebooks are historical records, not the current workflow.
+The linear-probe baseline defaults to SigLIP, with a forensic-only ablation also
+available. This is not a reproduction of the CLIP-based UnivFD model. Existing
+historical benchmark records remain historical evidence, not current commands.
 Feature caches and experiment records are not disposable interpreter caches:
 retain the current ones to avoid unnecessary extraction and preserve evidence.
+
+For a new shift-matrix run, use `scripts/04_score_and_calibrate.py` to export
+scores with group identities from data excluded from model fitting. Older score
+archives without identities need a new export. `scripts/05_shift_experiment.py`
+uses disjoint real calibration and test groups and reports observed false alarms
+and detection at both thresholds. These rates are not population guarantees.
+Both scripts refuse to overwrite prior output.
+
+New ranking reports use the available empirical false-positive budget for
+`TPR@FPR`, preserving strict threshold comparisons and ties. This can differ
+from older quantile-based ranking reports, especially on small sets. It does
+not change the deployed threshold or its real-only calibration rule.
 
 ## Layout
 

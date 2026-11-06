@@ -18,6 +18,16 @@ def test_auc_matches_random_at_half():
     assert abs(roc_auc(scores, labels) - 0.5) < 0.05
 
 
+def test_tpr_at_fpr_uses_available_budget_with_strict_exceedance():
+    real = np.arange(100)
+    labels = np.r_[np.zeros(100), 1]
+    assert tpr_at_fpr(np.r_[real, 98.5], labels, .01) == 1
+    assert tpr_at_fpr(np.r_[real, 98.5], labels, .009) == 0
+    # Tied real scores cannot be split to spend the budget.
+    real[-2:] = 99
+    assert tpr_at_fpr(np.r_[real, 98.5], labels, .01) == 0
+
+
 def test_tpr_at_fpr_and_eer_ranges():
     rng = np.random.default_rng(1)
     real = rng.normal(0, 1, 2000)

@@ -22,10 +22,6 @@ class BackboneConfig:
 class FeatureConfig:
     cache_dir: str = "feature_cache"
     backbones: list[BackboneConfig] = field(default_factory=lambda: [
-        # Retain historical encoders as explicit opt-ins, not default streams.
-        BackboneConfig("clip_l14", "openai/clip-vit-large-patch14", 224, False),
-        BackboneConfig("dino_b14", "facebook/dinov2-base", 224, False),
-        BackboneConfig("npr", "", 256, False),
         BackboneConfig("siglip", "google/siglip-base-patch16-224", 224),
         BackboneConfig("forensic", "", 256),
     ])
@@ -43,7 +39,7 @@ class CalibrationConfig:
 
 @dataclass
 class TrainConfig:
-    model: str = "fusion"           # "linear_probe" (UnivFD) | "fusion" (PMSA v2)
+    model: str = "fusion"           # "linear_probe" (SigLIP baseline) | "fusion"
     epochs: int = 50
     lr: float = 1e-3
     weight_decay: float = 1e-4
