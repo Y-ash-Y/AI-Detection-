@@ -41,15 +41,18 @@ APP_CSS = """
     color: var(--button-primary-text-color);
 }
 #pmsa-header .pmsa-mark svg path { stroke: #fff !important; }
-.pmsa-brand strong { font-size: 17px; letter-spacing: -.025em; }
-.pmsa-brand span:last-child { margin-left: auto; }
+#pmsa-header .pmsa-brand-name {
+    min-width: 0; font-size: clamp(16px, 2.2vw, 25px);
+    line-height: 1.25; letter-spacing: -.02em;
+}
+#pmsa-header .pmsa-brand-name strong { font-size: inherit; }
 .pmsa-intro {
     margin-top: 16px; padding: clamp(20px, 3vw, 32px);
     border-radius: 18px; color: #f4fbff;
     background: var(--pmsa-blue);
 }
 #pmsa-header .pmsa-intro h1 {
-    color: #f4fbff !important; font-size: clamp(28px, 4vw, 44px);
+    color: #f4fbff !important; font-size: clamp(30px, 5vw, 54px);
     line-height: 1.12; letter-spacing: -.045em; margin: 0 0 8px;
 }
 .pmsa-intro p, .pmsa-card p, .pmsa-section h2 { margin: 0; }
@@ -126,7 +129,9 @@ HEADER = """<header>
 <div class="pmsa-brand"><span class="pmsa-mark" aria-hidden="true">
 <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
 <path d="M3 8V4h4m10 0h4v4m0 8v4h-4m-10 0H3v-4M5 12h4l2-4 3 8 2-4h3"/>
-</svg></span><strong>PMSA</strong><span class="pmsa-muted">Image forensics</span></div>
+</svg></span><div class="pmsa-brand-name"><strong>PMSA :</strong>
+<span class="pmsa-brand-expansion">Probabilistic Media Synthesis &amp; Authentication</span>
+</div></div>
 <div class="pmsa-intro"><h1>AI Image Detector</h1>
 <p>PMSA combines learned visual features with image forensics to flag signs of AI generation.</p>
 </div></header>"""
@@ -171,8 +176,8 @@ def result_card(verdict):
     kind = {"AI-generated signal": "ai", "No AI signal detected": "no"}.get(verdict.label, "uncertain")
     title = {"ai": "AI-generation signal detected", "no": "No AI signal detected",
              "uncertain": "Inconclusive"}[kind]
-    description = {"ai": "The score is above the decision threshold. Check the source before drawing a conclusion.",
-                   "no": "The score is below the threshold. This does not establish camera origin.",
+    description = {"ai": "The score is above the decision threshold, so the image may be AI-generated.",
+                   "no": "The score is below the decision threshold, so the image may be real.",
                    "uncertain": "The score is close to the threshold. Check the original image and its source."}[kind]
     legacy_note = ('<p class="pmsa-disclaimer">Legacy artifacts: model pairing and preprocessing are unverified.</p>'
                    if verdict.artifact_status == "legacy-unverified" else "")

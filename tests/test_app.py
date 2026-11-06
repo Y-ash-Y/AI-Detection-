@@ -107,6 +107,12 @@ def test_result_card_has_three_states_without_fake_probability(score, label):
     assert "not a confidence percentage" in result
     assert "AI probability" not in result
     assert "Why this result?" in result
+    expected_description = {
+        "AI-generated signal": "The score is above the decision threshold, so the image may be AI-generated.",
+        "No AI signal detected": "The score is below the decision threshold, so the image may be real.",
+        "Uncertain": "The score is close to the threshold. Maybe real or AI genarated can't say",
+    }
+    assert expected_description[label] in result
     assert "don’t identify specific flaws or show where they are" in result
     assert metrics["Score (not a probability)"] == score
     assert "Contributions plus bias equal the score" in detail
@@ -220,6 +226,9 @@ def test_demo_exposes_plain_result_and_developer_diagnostics(monkeypatch):
     top_level = [child["id"] for child in config["layout"]["children"]]
     assert top_level.index(workspace["id"]) < top_level.index(developer["id"]) < top_level.index(privacy["id"])
     assert "AI Image Detector" in serialized
+    assert "<strong>PMSA :</strong>" in serialized
+    assert "Probabilistic Media Synthesis &amp; Authentication" in serialized
+    assert ">Image forensics</span>" not in serialized
     preview = next(c for c in config["components"] if c["props"].get("elem_id") == "pmsa-preview")
     assert preview["props"]["visible"] is False
     assert any(d.get("api_name") == "classify" for d in config["dependencies"])
