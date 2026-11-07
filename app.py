@@ -18,7 +18,7 @@ EMPTY_DETAIL = "Technical details will appear after analysis."
 
 APP_CSS = """
 .gradio-container {
-    --pmsa-blue: #1d4ed8;
+    --pmsa-blue: #0875e1;
     --pmsa-label: #805300;
     width: 100% !important; max-width: 1140px !important; margin-inline: auto !important;
     padding: 0 clamp(16px, 3vw, 36px) !important;
@@ -55,8 +55,8 @@ APP_CSS = """
     color: #f4fbff !important; font-size: clamp(30px, 5vw, 54px);
     line-height: 1.12; letter-spacing: -.045em; margin: 0 0 8px;
 }
-.pmsa-intro p, .pmsa-card p, .pmsa-section h2 { margin: 0; }
-#pmsa-header .pmsa-intro p { color: #def2fc !important; }
+.pmsa-intro p, .pmsa-card p { margin: 0; }
+#pmsa-header .pmsa-intro p { color: #fff !important; }
 .pmsa-muted, .pmsa-card p, .pmsa-readout dt { color: var(--body-text-color-subdued); }
 .pmsa-muted { font-size: 13px; }
 #pmsa-workspace { gap: 18px; align-items: flex-start; }
@@ -66,15 +66,17 @@ APP_CSS = """
     background: var(--block-background-fill); padding: clamp(16px, 2.4vw, 24px);
     align-self: flex-start; justify-content: flex-start !important;
 }
-.pmsa-section { display: flex; gap: 10px; align-items: center; }
-.pmsa-step {
-    display: grid; place-items: center; width: 27px; height: 27px; border-radius: 8px;
-    background: var(--background-fill-secondary); color: var(--body-text-color);
-    font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums;
-}
-#pmsa-workspace .pmsa-section h2 {
+#pmsa-workspace h2.pmsa-section {
+    display: flex; gap: 10px; align-items: center;
+    margin: 0 !important; line-height: 1.25 !important;
     color: var(--body-text-color) !important;
     font-size: 16px; letter-spacing: -.015em;
+}
+.pmsa-step {
+    display: grid; place-items: center; width: 27px; height: 27px; border-radius: 8px;
+    flex: 0 0 27px;
+    background: var(--background-fill-secondary); color: var(--body-text-color);
+    font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums;
 }
 #pmsa-upload { border-radius: 12px; overflow: hidden; border: 0; }
 #pmsa-file { border: 1.5px dashed var(--body-text-color-subdued); border-radius: 12px; }
@@ -178,7 +180,7 @@ def result_card(verdict):
              "uncertain": "Inconclusive"}[kind]
     description = {"ai": "The score is above the decision threshold, so the image may be AI-generated.",
                    "no": "The score is below the decision threshold, so the image may be real.",
-                   "uncertain": "The score is close to the threshold. Check the original image and its source."}[kind]
+                   "uncertain": "The score is close to the threshold, so PMSA can’t tell whether the image is real or AI-generated."}[kind]
     legacy_note = ('<p class="pmsa-disclaimer">Legacy artifacts: model pairing and preprocessing are unverified.</p>'
                    if verdict.artifact_status == "legacy-unverified" else "")
     return f"""<section class="pmsa-card pmsa-{kind}" aria-live="polite">
@@ -349,8 +351,8 @@ def build_demo():
         gr.HTML(HEADER, elem_id="pmsa-header", padding=False)
         with gr.Row(equal_height=False, elem_id="pmsa-workspace"):
             with gr.Column(scale=1, min_width=0, elem_classes="pmsa-panel", elem_id="pmsa-input-panel"):
-                gr.HTML('<div class="pmsa-section"><span class="pmsa-step" aria-hidden="true">1</span>'
-                        '<h2>Input image</h2></div>', elem_id="pmsa-image-heading", padding=False)
+                gr.HTML('<h2 class="pmsa-section"><span class="pmsa-step" aria-hidden="true">1</span>'
+                        '<span>Input image</span></h2>', elem_id="pmsa-image-heading", padding=False)
                 with gr.Group(elem_id="pmsa-upload"):
                     inp = gr.File(type="filepath", label="Upload image", show_label=False,
                                   file_count="single", height=204, elem_id="pmsa-file")
@@ -362,8 +364,8 @@ def build_demo():
                                        interactive=False, elem_id="pmsa-analyze")
                     clear = gr.Button("Clear", scale=1, min_width=80, interactive=False, elem_id="pmsa-clear")
             with gr.Column(scale=1, min_width=0, elem_classes="pmsa-panel", elem_id="pmsa-result-panel"):
-                gr.HTML('<div class="pmsa-section"><span class="pmsa-step" aria-hidden="true">2</span>'
-                        '<h2>Analysis result</h2></div>', padding=False)
+                gr.HTML('<h2 class="pmsa-section"><span class="pmsa-step" aria-hidden="true">2</span>'
+                        '<span>Analysis result</span></h2>', padding=False)
                 label = gr.HTML(EMPTY_RESULT, elem_id="pmsa-result", padding=False)
         gr.Markdown("**A signal, not proof.** Real photos can be flagged, and generated images can be missed.",
                     elem_id="pmsa-notice")

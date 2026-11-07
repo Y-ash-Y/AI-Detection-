@@ -110,7 +110,7 @@ def test_result_card_has_three_states_without_fake_probability(score, label):
     expected_description = {
         "AI-generated signal": "The score is above the decision threshold, so the image may be AI-generated.",
         "No AI signal detected": "The score is below the decision threshold, so the image may be real.",
-        "Uncertain": "The score is close to the threshold. Maybe real or AI genarated can't say",
+        "Uncertain": "The score is close to the threshold, so PMSA can’t tell whether the image is real or AI-generated.",
     }
     assert expected_description[label] in result
     assert "don’t identify specific flaws or show where they are" in result
