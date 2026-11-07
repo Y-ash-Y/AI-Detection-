@@ -25,3 +25,68 @@ jobs:
       - run: python -m pytest -q
       - run: python examples/offline_smoke.py
       - run: python -m compileall -q pmsa scripts examples app.py
+  deploy:
+    name: Deploy PMSA UI to Hugging Face
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pmsa-space-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install huggingface_hub==1.19.0
+      - name: Upload app and release manifest
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ "$GITHUB_SHA" != "$(git ls-remote --exit-code origin refs/heads/main | cut -f1)" ]; then
+            echo "Skipping: a newer commit is already on main."
+            exit 0
+          fi
+
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          from huggingface_hub import CommitOperationAdd, HfApi
+
+          repo = "Xcalivier/ai-generated-detector"
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          base = api.repo_info(repo, repo_type="space", revision="main").sha
+          manifest_path = api.hf_hub_download(
+              repo, "release_manifest.json", repo_type="space", revision=base
+          )
+          manifest = json.loads(Path(manifest_path).read_text())
+          app = Path("app.py").read_bytes()
+          digest = hashlib.sha256(app).hexdigest()
+
+          if manifest["files"]["app.py"] == digest:
+              print("The Space already has this app.py.")
+              raise SystemExit(0)
+
+          sha = os.environ["GITHUB_SHA"]
+          manifest["files"]["app.py"] = digest
+          manifest["release_id"] = f"github-ui-{sha[:12]}"
+          manifest["github_app_source_revision"] = sha
+          commit = api.create_commit(
+              repo_id=repo,
+              repo_type="space",
+              revision="main",
+              parent_commit=base,
+              commit_message=f"Deploy PMSA UI from GitHub {sha[:12]}",
+              operations=[
+                  CommitOperationAdd(path_in_repo="app.py", path_or_fileobj=app),
+                  CommitOperationAdd(
+                      path_in_repo="release_manifest.json",
+                      path_or_fileobj=(json.dumps(manifest, indent=2) + "\n").encode(),
+                  ),
+              ],
+          )
+          print(commit.commit_url)
+          PY
